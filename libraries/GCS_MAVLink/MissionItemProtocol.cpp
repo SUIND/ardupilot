@@ -302,6 +302,22 @@ void MissionItemProtocol::send_mission_ack(const GCS_MAVLINK &_link,
                                  msg.compid,
                                  result,
                                  mission_type());
+    if(_link.get_chan() != MAVLINK_COMM_1)
+    {
+      mavlink_msg_mission_ack_send(MAVLINK_COMM_1,
+                                   msg.sysid,
+                                   msg.compid,
+                                   result,
+                                   mission_type());
+    }
+    if(_link.get_chan() != MAVLINK_COMM_2)
+    {
+      mavlink_msg_mission_ack_send(MAVLINK_COMM_2,
+                                   msg.sysid,
+                                   msg.compid,
+                                   result,
+                                   mission_type());
+    }
 }
 
 /**

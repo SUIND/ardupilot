@@ -3631,6 +3631,9 @@ void GCS_MAVLINK::handle_heartbeat(const mavlink_message_t &msg) const
     if (msg.sysid == sysid_my_gcs()) {
         gcs().sysid_myggcs_seen(AP_HAL::millis());
     }
+    // if (msg.compid == 196) {
+    //    hal.console->printf("hb received from companion \n");
+    // } 
 }
 
 /*
