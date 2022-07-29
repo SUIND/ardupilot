@@ -1069,6 +1069,24 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_GROUPINFO("GUID_TIMEOUT", 46, ParametersG2, guided_timeout, 3.0),
 #endif
 
+    // @Param: FS_COMPANION_TIMEOUT
+    // @DisplayName: Companion failsafe timeout
+    // @Description: Timeout before triggering the Companion failsafe
+    // @Units: s
+    // @Range: 2 120
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("FS_COMP_TIMEOUT", 47, ParametersG2, fs_companion_timeout, 2),
+
+    // @Param: FS_COMPANION_ACTION
+    // @DisplayName: Companion failsafe action
+    // @Description: Timeout before triggering the Companion failsafe (0: None 1: land 2: RTL)
+    // @Units: s
+    // @Range: 0 2
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("FS_COMP_ACTION", 48, ParametersG2, fs_companion_action, 1),
+
     AP_GROUPEND
 };
 

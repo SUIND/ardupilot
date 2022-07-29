@@ -648,6 +648,10 @@ public:
 #if MODE_GUIDED_ENABLED == ENABLED
     AP_Float guided_timeout;
 #endif
+
+    AP_Float fs_companion_timeout;
+
+    AP_Int8 fs_companion_action;
 };
 
 extern const AP_Param::Info        var_info[];
