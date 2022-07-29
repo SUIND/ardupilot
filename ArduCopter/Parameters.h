@@ -673,6 +673,9 @@ public:
 #if HAL_WITH_ESC_TELEM && FRAME_CONFIG != HELI_FRAME
     AP_Int16 takeoff_rpm_min;
 #endif
+    AP_Float fs_companion_timeout;
+
+    AP_Int8 fs_companion_action;
 };
 
 extern const AP_Param::Info        var_info[];

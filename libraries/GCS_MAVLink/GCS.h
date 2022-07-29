@@ -1055,9 +1055,18 @@ public:
     uint32_t sysid_myggcs_last_seen_time_ms() const {
         return _sysid_mygcs_last_seen_time_ms;
     }
+
+    uint32_t sysid_comp_last_seen_time_ms() const {
+        return _sysid_comp_last_seen_time_ms;
+    }
+
     // called when valid traffic has been seen from our GCS
     void sysid_myggcs_seen(uint32_t seen_time_ms) {
         _sysid_mygcs_last_seen_time_ms = seen_time_ms;
+    }
+
+    void sysid_comp_seen(uint32_t seen_time_ms) {
+        _sysid_comp_last_seen_time_ms = seen_time_ms;
     }
 
     void send_to_active_channels(uint32_t msgid, const char *pkt);
@@ -1176,6 +1185,8 @@ private:
 
     // time we last saw traffic from our GCS
     uint32_t _sysid_mygcs_last_seen_time_ms;
+    // time we last saw HB from Companion Computer
+    uint32_t _sysid_comp_last_seen_time_ms;
 
     void service_statustext(void);
 #if HAL_MEM_CLASS <= HAL_MEM_CLASS_192 || CONFIG_HAL_BOARD == HAL_BOARD_SITL

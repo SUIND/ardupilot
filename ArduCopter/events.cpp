@@ -233,6 +233,82 @@ void Copter::failsafe_gcs_off_event(void)
     AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_GCS, LogErrorCode::FAILSAFE_RESOLVED);
 }
 
+// failsafe_companion_check - check for companion computer failsafe
+void Copter::failsafe_companion_check()
+{
+    // Bypass GCS failsafe checks if disabled or GCS never connected
+    //if (g.failsafe_gcs == FS_GCS_DISABLED) { // always enable for now
+    //    return;
+    //}
+
+    const uint32_t comp_last_seen_ms = gcs().sysid_comp_last_seen_time_ms();
+    if (comp_last_seen_ms == 0) {
+        return;
+    }
+
+    // calc time since last companion HB
+    // note: this only looks at the heartbeat from the device id 196
+    const uint32_t last_comp_update_ms = millis() - comp_last_seen_ms;
+    const uint32_t comp_timeout_ms = uint32_t(constrain_float(g2.fs_companion_timeout * 1000.0f, 0.0f, UINT32_MAX));
+
+    // Determine which event to trigger
+    if (last_comp_update_ms < comp_timeout_ms && failsafe.companion) {
+        // Recovery from a COMP failsafe
+        set_failsafe_companion(false);
+        failsafe_companion_off_event();
+
+    } else if (last_comp_update_ms < comp_timeout_ms && !failsafe.companion) {
+        // No problem, do nothing
+
+    } else if (last_comp_update_ms > comp_timeout_ms && failsafe.companion) {
+        // Already in failsafe, do nothing
+
+    } else if (last_comp_update_ms > comp_timeout_ms && !failsafe.companion) {
+        // New companion failsafe event, trigger events
+        set_failsafe_companion(true);
+        failsafe_companion_on_event();
+    }
+}
+
+// failsafe_companion_on_event - actions to take when companion HB is lost
+void Copter::failsafe_companion_on_event(void)
+{
+    AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_COMPANION, LogErrorCode::FAILSAFE_OCCURRED);
+    RC_Channels::clear_overrides();
+
+    // convert the desired failsafe response to the Failsafe_Action enum
+    Failsafe_Action desired_action;
+
+    // Conditions to deviate from FS_GCS_ENABLE parameter setting
+    if (!motors->armed()) {
+        desired_action = Failsafe_Action_None;
+    }
+    else if (g2.fs_companion_action == 0) {
+        desired_action = Failsafe_Action_None;
+    }
+    else if (g2.fs_companion_action == 1) {
+        desired_action = Failsafe_Action_Land;
+    }
+    else if (g2.fs_companion_action == 2) {
+        desired_action = Failsafe_Action_RTL;
+    }
+    else {
+        desired_action = Failsafe_Action_Land;
+    }
+    gcs().send_text(MAV_SEVERITY_WARNING, "Companion Failsafe (only triggered in guided)");
+    if (flightmode->mode_number() == Mode::Number::GUIDED) {
+      // Call the failsafe action handler
+      do_failsafe_action(desired_action, ModeReason::COMPANION_FAILSAFE);
+    }
+}
+
+// failsafe_companion_off_event - actions to take when companion HB is restored
+void Copter::failsafe_companion_off_event(void)
+{
+    gcs().send_text(MAV_SEVERITY_WARNING, "Companion Failsafe Cleared");
+    AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_COMPANION, LogErrorCode::FAILSAFE_RESOLVED);
+}
+
 // executes terrain failsafe if data is missing for longer than a few seconds
 void Copter::failsafe_terrain_check()
 {

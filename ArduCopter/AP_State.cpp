@@ -79,6 +79,15 @@ void Copter::set_failsafe_gcs(bool b)
 }
 
 // ---------------------------------------------
+void Copter::set_failsafe_companion(bool b)
+{
+    failsafe.companion = b;
+
+    // update AP_Notify
+        AP_Notify::flags.failsafe_companion = b;
+}
+
+// ---------------------------------------------
 
 void Copter::update_using_interlock()
 {
