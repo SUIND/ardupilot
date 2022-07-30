@@ -302,6 +302,7 @@ void MissionItemProtocol::send_mission_ack(const GCS_MAVLINK &_link,
                                  msg.compid,
                                  result,
                                  mission_type());
+#if CONFIG_HAL_BOARD != HAL_BOARD_SITL
     if(_link.get_chan() != MAVLINK_COMM_1)
     {
       mavlink_msg_mission_ack_send(MAVLINK_COMM_1,
@@ -318,6 +319,7 @@ void MissionItemProtocol::send_mission_ack(const GCS_MAVLINK &_link,
                                    result,
                                    mission_type());
     }
+#endif
 }
 
 /**
