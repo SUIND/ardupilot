@@ -215,6 +215,7 @@ protected:
     void auto_takeoff_run();
     void auto_takeoff_start(float complete_alt_cm, bool terrain_alt);
     bool auto_takeoff_get_position(Vector3p& completion_pos);
+    void alt_takeoff_run();
 
     // altitude above-ekf-origin below which auto takeoff does not control horizontal position
     static bool auto_takeoff_no_nav_active;

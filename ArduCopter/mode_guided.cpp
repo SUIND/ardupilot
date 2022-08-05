@@ -668,8 +668,8 @@ void ModeGuided::set_angle(const Quaternion &attitude_quat, const Vector3f &ang_
 //      called by guided_run at 100hz or more
 void ModeGuided::takeoff_run()
 {
-    auto_takeoff_run();
-    if (auto_takeoff_complete && !takeoff_complete) {
+    alt_takeoff_run();
+    if (!takeoff_complete && wp_nav->reached_wp_destination()) {
         takeoff_complete = true;
 #if LANDING_GEAR_ENABLED == ENABLED
         // optionally retract landing gear
