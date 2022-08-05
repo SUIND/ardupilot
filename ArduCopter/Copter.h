@@ -893,6 +893,9 @@ private:
     void allocate_motors(void);
     bool is_tradheli() const;
 
+    // takeoff.cpp
+    float mav_climb_rate = 0.0;
+
     // terrain.cpp
     void terrain_update();
     void terrain_logging();

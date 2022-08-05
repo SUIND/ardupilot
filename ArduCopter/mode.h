@@ -177,6 +177,7 @@ protected:
     // method shared by both Guided and Auto for takeoff.  This is
     // waypoint navigation but the user can control the yaw.
     void auto_takeoff_run();
+    void alt_takeoff_run();
     void auto_takeoff_set_start_alt(void);
 
     // altitude above-ekf-origin below which auto takeoff does not control horizontal position

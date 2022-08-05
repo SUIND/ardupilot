@@ -631,7 +631,7 @@ void ModeGuided::set_angle(const Quaternion &q, float climb_rate_cms_or_thrust, 
 //      called by guided_run at 100hz or more
 void ModeGuided::takeoff_run()
 {
-    auto_takeoff_run();
+    alt_takeoff_run();
     if (!takeoff_complete && wp_nav->reached_wp_destination()) {
         takeoff_complete = true;
 #if LANDING_GEAR_ENABLED == ENABLED

@@ -738,12 +738,16 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_command_long_packet(const mavlink_command_
         // param6 : longitude   (not supported)
         // param7 : altitude [metres]
 
-        float takeoff_alt = packet.param7 * 100;      // Convert m to cm
-
-        if (!copter.flightmode->do_user_takeoff(takeoff_alt, is_zero(packet.param3))) {
-            return MAV_RESULT_FAILED;
+        float takeoff_alt_cm = 0.0;
+        if(!std::isnan(packet.param7) && copter.flightmode->do_user_takeoff(takeoff_alt_cm, is_zero(packet.param3)))
+        {
+          copter.mav_climb_rate = packet.param7 * 100; // Convert m to cm
+          return MAV_RESULT_ACCEPTED;
         }
-        return MAV_RESULT_ACCEPTED;
+        else
+        {
+          return MAV_RESULT_FAILED;
+        }
     }
 
 #if MODE_AUTO_ENABLED == ENABLED
