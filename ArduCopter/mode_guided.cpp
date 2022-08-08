@@ -106,28 +106,29 @@ bool ModeGuided::allows_arming(AP_Arming::Method method) const
 // do_user_takeoff_start - initialises waypoint controller to implement take-off
 bool ModeGuided::do_user_takeoff_start(float takeoff_alt_cm)
 {
+    hal.console->printf("guided user takeoff\n");
     guided_mode = SubMode::TakeOff;
 
-    // initialise wpnav destination
+//    // initialise wpnav destination
     Location target_loc = copter.current_loc;
     Location::AltFrame frame = Location::AltFrame::ABOVE_HOME;
-    if (wp_nav->rangefinder_used_and_healthy() &&
-            wp_nav->get_terrain_source() == AC_WPNav::TerrainSource::TERRAIN_FROM_RANGEFINDER &&
-            takeoff_alt_cm < copter.rangefinder.max_distance_cm_orient(ROTATION_PITCH_270)) {
-        // can't takeoff downwards
-        if (takeoff_alt_cm <= copter.rangefinder_state.alt_cm) {
-            return false;
-        }
-        frame = Location::AltFrame::ABOVE_TERRAIN;
-    }
-    target_loc.set_alt_cm(takeoff_alt_cm, frame);
+//    if (wp_nav->rangefinder_used_and_healthy() &&
+//            wp_nav->get_terrain_source() == AC_WPNav::TerrainSource::TERRAIN_FROM_RANGEFINDER &&
+//            takeoff_alt_cm < copter.rangefinder.max_distance_cm_orient(ROTATION_PITCH_270)) {
+//        // can't takeoff downwards
+//        if (takeoff_alt_cm <= copter.rangefinder_state.alt_cm) {
+//            return false;
+//        }
+//        frame = Location::AltFrame::ABOVE_TERRAIN;
+//    }
+//    target_loc.set_alt_cm(takeoff_alt_cm, frame);
 
-    if (!wp_nav->set_wp_destination_loc(target_loc)) {
-        // failure to set destination can only be because of missing terrain data
-        AP::logger().Write_Error(LogErrorSubsystem::NAVIGATION, LogErrorCode::FAILED_TO_SET_DESTINATION);
-        // failure is propagated to GCS with NAK
-        return false;
-    }
+//    if (!wp_nav->set_wp_destination_loc(target_loc)) {
+//        // failure to set destination can only be because of missing terrain data
+//        AP::logger().Write_Error(LogErrorSubsystem::NAVIGATION, LogErrorCode::FAILED_TO_SET_DESTINATION);
+//        // failure is propagated to GCS with NAK
+//        return false;
+//    }
 
     // initialise yaw
     auto_yaw.set_mode(AUTO_YAW_HOLD);
@@ -140,6 +141,14 @@ bool ModeGuided::do_user_takeoff_start(float takeoff_alt_cm)
 
     // record takeoff has not completed
     takeoff_complete = false;
+
+    int32_t takeoff_alt_cms = 0;
+    float takeoff_alt = 0.0;
+    if(target_loc.get_alt_cm(frame, takeoff_alt_cms))
+    {
+      takeoff_alt = takeoff_alt_cms/100.0;
+    }
+    takeoff.start(takeoff_alt);
 
     return true;
 }
@@ -632,8 +641,9 @@ void ModeGuided::set_angle(const Quaternion &q, float climb_rate_cms_or_thrust, 
 void ModeGuided::takeoff_run()
 {
     alt_takeoff_run();
-    if (!takeoff_complete && wp_nav->reached_wp_destination()) {
+    if (!takeoff_complete && !takeoff.running()) {
         takeoff_complete = true;
+        hal.console->printf("Guid: takeoff complete");
 #if LANDING_GEAR_ENABLED == ENABLED
         // optionally retract landing gear
         copter.landinggear.retract_after_takeoff();

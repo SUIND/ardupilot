@@ -739,10 +739,25 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_command_long_packet(const mavlink_command_
         // param7 : altitude [metres]
 
         float takeoff_alt_cm = 0.0;
-        if(!std::isnan(packet.param7) && copter.flightmode->do_user_takeoff(takeoff_alt_cm, is_zero(packet.param3)))
+        if(!std::isnan(packet.param7))
         {
-          copter.mav_climb_rate = packet.param7 * 100; // Convert m to cm
-          return MAV_RESULT_ACCEPTED;
+            if(!copter.flightmode->is_taking_off())
+            {
+              if(copter.flightmode->do_user_takeoff(takeoff_alt_cm, is_zero(packet.param3)))
+              {
+                  copter.mav_climb_rate = packet.param7 * 100; // Convert m to cm
+                  return MAV_RESULT_ACCEPTED;
+              }
+              else
+              {
+                  return MAV_RESULT_FAILED;
+              }
+            }
+            else
+            {
+                copter.mav_climb_rate = packet.param7 * 100; // Convert m to cm
+                return MAV_RESULT_ACCEPTED;
+            }
         }
         else
         {
@@ -1125,6 +1140,10 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
             break;
         }
 
+        if(copter.flightmode->is_taking_off())
+        {
+            copter.flightmode->takeoff_stop();
+        }
         bool pos_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE;
         bool vel_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE;
         bool acc_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE;
