@@ -12,7 +12,6 @@ float Mode::auto_takeoff_no_nav_alt_cm = 0;
 
 bool Mode::do_user_takeoff_start(float takeoff_alt_cm)
 {
-    hal.console->printf("Mode:: Do User takeoff Start\n");
     copter.flightmode->takeoff.start(takeoff_alt_cm);
     return true;
 }
@@ -20,7 +19,6 @@ bool Mode::do_user_takeoff_start(float takeoff_alt_cm)
 // initiate user takeoff - called when MAVLink TAKEOFF command is received
 bool Mode::do_user_takeoff(float takeoff_alt_cm, bool must_navigate)
 {
-    hal.console->printf("Mode:: User takeoff\n");
     if (!copter.motors->armed()) {
         return false;
     }
@@ -54,7 +52,6 @@ bool Mode::do_user_takeoff(float takeoff_alt_cm, bool must_navigate)
 // start takeoff to specified altitude above home in centimeters
 void Mode::_TakeOff::start(float alt_cm)
 {
-    hal.console->printf("_Takeoff::start\n");
     // indicate we are taking off
     copter.set_land_complete(false);
     // tell position controller to reset alt target and reset I terms
@@ -69,7 +66,6 @@ void Mode::_TakeOff::start(float alt_cm)
 // stop takeoff
 void Mode::_TakeOff::stop()
 {
-    hal.console->printf("_Takeoff::stop\n");
     _running = false;
 }
 
@@ -200,7 +196,6 @@ void Mode::alt_takeoff_run()
     // aircraft stays in landed state until rotor speed runup has finished
     if (motors->get_spool_state() == AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
         set_land_complete(false);
-//        hal.console->printf("if\n");
     } else {
         // motors have not completed spool up yet so relax navigation and position controllers
 //        wp_nav->shift_wp_origin_and_destination_to_current_pos_xy();
@@ -209,7 +204,6 @@ void Mode::alt_takeoff_run()
         attitude_control->reset_yaw_target_and_rate();
         attitude_control->reset_rate_controller_I_terms();
         attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(0.0f, 0.0f, 0.0f);
-//        hal.console->printf("else\n");
         return;
     }
 

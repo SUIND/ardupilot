@@ -106,10 +106,9 @@ bool ModeGuided::allows_arming(AP_Arming::Method method) const
 // do_user_takeoff_start - initialises waypoint controller to implement take-off
 bool ModeGuided::do_user_takeoff_start(float takeoff_alt_cm)
 {
-    hal.console->printf("guided user takeoff\n");
     guided_mode = SubMode::TakeOff;
 
-//    // initialise wpnav destination
+    // initialise wpnav destination
     Location target_loc = copter.current_loc;
     Location::AltFrame frame = Location::AltFrame::ABOVE_HOME;
 //    if (wp_nav->rangefinder_used_and_healthy() &&
@@ -643,7 +642,6 @@ void ModeGuided::takeoff_run()
     alt_takeoff_run();
     if (!takeoff_complete && !takeoff.running()) {
         takeoff_complete = true;
-        hal.console->printf("Guid: takeoff complete");
 #if LANDING_GEAR_ENABLED == ENABLED
         // optionally retract landing gear
         copter.landinggear.retract_after_takeoff();
