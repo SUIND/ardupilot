@@ -261,38 +261,6 @@ void Mode::alt_takeoff_run()
         }
     }
 
-    // aircraft stays in landed state until rotor speed runup has finished
-    if (motors->get_spool_state() == AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
-        set_land_complete(false);
-    } else {
-        // motors have not completed spool up yet so relax navigation and position controllers
-//        wp_nav->shift_wp_origin_and_destination_to_current_pos_xy();
-        pos_control->relax_z_controller(0.0f);   // forces throttle output to decay to zero
-        pos_control->update_z_controller();
-        attitude_control->reset_yaw_target_and_rate();
-        attitude_control->reset_rate_controller_I_terms();
-        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(0.0f, 0.0f, 0.0f);
-        return;
-    }
-
-    // check if we are not navigating because of low altitude
-    if (auto_takeoff_no_nav_active) {
-        // check if vehicle has reached no_nav_alt threshold
-        if (inertial_nav.get_altitude() >= auto_takeoff_no_nav_alt_cm) {
-            auto_takeoff_no_nav_active = false;
-//            wp_nav->shift_wp_origin_and_destination_to_stopping_point_xy();
-        } else {
-            // shift the navigation target horizontally to our current position
-//            wp_nav->shift_wp_origin_and_destination_to_current_pos_xy();
-        }
-        // tell the position controller that we have limited roll/pitch demand to prevent integrator buildup
-//        pos_control->set_externally_limited_xy();
-    }
-
-    Vector3f thrustvector{0, 0, -GRAVITY_MSS * 100.0f};
-    if (!auto_takeoff_no_nav_active) {
-        thrustvector = wp_nav->get_thrust_vector();
-    }
     // get avoidance adjusted climb rate
     float target_climb_rate = copter.mav_climb_rate;
     // command the aircraft to the take off altitude and current pilot climb rate
