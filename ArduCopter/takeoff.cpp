@@ -193,6 +193,29 @@ void Mode::alt_takeoff_run()
         }
     }
 
+    if (!pos_control->is_active_z()) {
+        pos_control->init_z_controller();
+    }
+
+    if (motors->get_spool_state() == AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
+        set_land_complete(false);
+    } else {
+        // motors have not completed spool up yet so relax navigation and position controllers
+//        wp_nav->shift_wp_origin_and_destination_to_current_pos_xy();
+        pos_control->relax_z_controller(0.0f);   // forces throttle output to decay to zero
+        pos_control->update_z_controller();
+        attitude_control->reset_yaw_target_and_rate();
+        attitude_control->reset_rate_controller_I_terms();
+        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(0.0f, 0.0f, 0.0f);
+        return;
+    }
+
+    // set vertical speed and acceleration limits
+    pos_control->set_max_speed_accel_z(-get_pilot_speed_dn(), g.pilot_speed_up, g.pilot_accel_z);
+
+    // apply SIMPLE mode transform to pilot inputs
+    update_simple_mode();
+
     // get avoidance adjusted climb rate
     float target_climb_rate = copter.mav_climb_rate;
     // command the aircraft to the take off altitude and current pilot climb rate
