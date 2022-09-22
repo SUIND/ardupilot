@@ -1087,6 +1087,15 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("FS_COMP_ACTION", 48, ParametersG2, fs_companion_action, 1),
 
+    // @Param: AUTO_SPRAY_ENABLE
+    // @DisplayName: Enable Automatic Spray Control
+    // @Description: If enabled spray will automatically be triggered
+    // @Units: s
+    // @Range: 0 1
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("AUTO_SPRAY_EN", 49, ParametersG2, auto_spray_enable, 1),
+
     AP_GROUPEND
 };
 

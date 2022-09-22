@@ -652,6 +652,8 @@ public:
     AP_Float fs_companion_timeout;
 
     AP_Int8 fs_companion_action;
+
+    AP_Int8 auto_spray_enable;
 };
 
 extern const AP_Param::Info        var_info[];
