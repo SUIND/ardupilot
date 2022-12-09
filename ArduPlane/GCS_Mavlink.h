@@ -63,5 +63,7 @@ private:
     float vfr_hud_airspeed() const override;
     int16_t vfr_hud_throttle() const override;
     float vfr_hud_climbrate() const override;
+    bool tracking_state = false;
+    bool tracking_state_prev = false;
 
 };

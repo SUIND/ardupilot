@@ -1230,11 +1230,36 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
       mavlink_msg_v2_extension_decode(&msg, &v2_extension);
       if(v2_extension.message_type == 12)
       {
-        hal.console->printf("v2 extension msg received, tracking active\n");
+        tracking_state_prev = tracking_state;
+        gcs().send_text(MAV_SEVERITY_INFO, "Tracking Active");
+        if (plane.control_mode != &plane.mode_guided)
+        {
+          // put in guided mode
+          plane.set_mode(plane.mode_guided, ModeReason::GCS_COMMAND);
+        }
+        tracking_state = true;
       }
       else
       {
-        hal.console->printf("v2 extension msg received, tracking inactivated\n");
+        // detect falling edge on trcking state
+        tracking_state_prev = tracking_state;
+        tracking_state = false;
+        bool en_mode_reset = false;
+        if(tracking_state == tracking_state_prev)
+        {
+          en_mode_reset = false;
+        }
+        else
+        {
+          en_mode_reset = true;
+        }
+        gcs().send_text(MAV_SEVERITY_INFO, "Tracking Inactive");
+        if (plane.control_mode == &plane.mode_guided && en_mode_reset)
+        {
+          // put in the mode before guided
+          plane.set_mode(plane.previous_mode->mode_number(), ModeReason::GCS_COMMAND);
+        }
+
       }
 
       break;
