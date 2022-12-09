@@ -1224,6 +1224,22 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         break;
     }
 
+    case MAVLINK_MSG_ID_V2_EXTENSION:
+    {
+      mavlink_v2_extension_t v2_extension;
+      mavlink_msg_v2_extension_decode(&msg, &v2_extension);
+      if(v2_extension.message_type == 12)
+      {
+        hal.console->printf("v2 extension msg received, tracking active\n");
+      }
+      else
+      {
+        hal.console->printf("v2 extension msg received, tracking inactivated\n");
+      }
+
+      break;
+    }
+
     case MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT:
     {
         // Only want to allow companion computer position control when
@@ -1242,13 +1258,15 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         // Unexpectedly, the mask is expecting "ones" for dimensions that should
         // be IGNORNED rather than INCLUDED.  See mavlink documentation of the
         // SET_POSITION_TARGET_GLOBAL_INT message, type_mask field.
-        const uint16_t alt_mask = 0b1111111111111011; // (z mask at bit 3)
+        // const uint16_t alt_mask = 0b1111111111111011; // (z mask at bit 3)
             
         bool msg_valid = true;
         AP_Mission::Mission_Command cmd = {0};
         
-        if (pos_target.type_mask & alt_mask)
-        {
+//        if (pos_target.type_mask & alt_mask)
+//        {
+            cmd.content.location.lat = pos_target.lat_int;
+            cmd.content.location.lng = pos_target.lon_int;
             cmd.content.location.alt = pos_target.alt * 100;
             cmd.content.location.relative_alt = false;
             cmd.content.location.terrain_alt = false;
@@ -1271,9 +1289,9 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             }    
 
             if (msg_valid) {
-                handle_change_alt_request(cmd);
+                handle_guided_request(cmd);
             }
-        } // end if alt_mask       
+//        } // end if alt_mask
 
         break;
     }

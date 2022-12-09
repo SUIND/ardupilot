@@ -143,3 +143,11 @@ persistent.dat
 dumpstack_*out
 build.tmp.binaries/
 tasklist.json
+*.ou
+*.config
+*.cflags
+*.cxxflags
+*.includes
+*.files
+*.creator
+*.user
