@@ -79,8 +79,7 @@ public:
     AP_Scheduler();
 
     /* Do not allow copies */
-    AP_Scheduler(const AP_Scheduler &other) = delete;
-    AP_Scheduler &operator=(const AP_Scheduler&) = delete;
+    CLASS_NO_COPY(AP_Scheduler);
 
     static AP_Scheduler *get_singleton();
     static AP_Scheduler *_singleton;
@@ -163,8 +162,14 @@ public:
         return _loop_period_s;
     }
 
+    // get the filtered main loop time in seconds
     float get_filtered_loop_time(void) const {
         return perf_info.get_filtered_time();
+    }
+
+    // get the filtered active main loop rate
+    float get_filtered_loop_rate_hz() {
+        return perf_info.get_filtered_loop_rate_hz();
     }
 
     // get the time in seconds that the last loop took

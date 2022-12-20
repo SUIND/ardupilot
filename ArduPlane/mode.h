@@ -16,8 +16,7 @@ class Mode
 public:
 
     /* Do not allow copies */
-    Mode(const Mode &other) = delete;
-    Mode &operator=(const Mode&) = delete;
+    CLASS_NO_COPY(Mode);
 
     // Auto Pilot modes
     // ----------------
@@ -116,7 +115,7 @@ public:
     virtual bool does_auto_throttle() const { return false; }
 
     // method for mode specific target altitude profiles
-    virtual bool update_target_altitude() { return false; }
+    virtual void update_target_altitude();
 
     // handle a guided target request from GCS
     virtual bool handle_guided_request(Location target_loc) { return false; }
@@ -225,9 +224,16 @@ public:
     // handle a guided target request from GCS
     bool handle_guided_request(Location target_loc) override;
 
+    void set_radius_and_direction(const float radius, const bool direction_is_ccw);
+
+    void update_target_altitude() override;
+
 protected:
 
     bool _enter() override;
+
+private:
+    float active_radius_m;
 };
 
 class ModeCircle: public Mode
@@ -271,8 +277,10 @@ public:
     bool does_auto_navigation() const override { return true; }
 
     bool does_auto_throttle() const override { return true; }
-    
+
     bool allows_terrain_disable() const override { return true; }
+
+    void update_target_altitude() override;
 
 protected:
 
@@ -341,7 +349,7 @@ protected:
 private:
 
     // Switch to QRTL if enabled and within radius
-    bool switch_QRTL(bool check_loiter_target = true);
+    bool switch_QRTL();
 };
 
 class ModeStabilize : public Mode
@@ -418,6 +426,8 @@ public:
 
     bool does_auto_throttle() const override { return true; }
 
+    void update_target_altitude() override {};
+
 protected:
 
     bool _enter() override;
@@ -443,6 +453,8 @@ public:
     bool get_target_heading_cd(int32_t &target_heading) const;
 
     bool does_auto_throttle() const override { return true; }
+
+    void update_target_altitude() override {};
 
 protected:
 
@@ -592,7 +604,7 @@ public:
 
     bool does_auto_throttle() const override { return true; }
 
-    bool update_target_altitude() override;
+    void update_target_altitude() override;
 
     bool allows_throttle_nudging() const override;
 

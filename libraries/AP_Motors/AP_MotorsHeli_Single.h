@@ -38,9 +38,8 @@
 class AP_MotorsHeli_Single : public AP_MotorsHeli {
 public:
     // constructor
-    AP_MotorsHeli_Single(uint16_t       loop_rate,
-                         uint16_t       speed_hz = AP_MOTORS_HELI_SPEED_DEFAULT) :
-        AP_MotorsHeli(loop_rate, speed_hz),
+    AP_MotorsHeli_Single(uint16_t speed_hz = AP_MOTORS_HELI_SPEED_DEFAULT) :
+        AP_MotorsHeli(speed_hz),
         _tail_rotor(SRV_Channel::k_heli_tail_rsc, AP_MOTORS_HELI_SINGLE_TAILRSC),
         _swashplate()
     {
@@ -82,7 +81,7 @@ public:
     uint32_t get_motor_mask() override;
 
     // ext_gyro_gain - set external gyro gain in range 0 ~ 1000
-    void ext_gyro_gain(float gain)  override { if (gain >= 0 && gain <= 1000) { _ext_gyro_gain_std = gain; }}
+    void ext_gyro_gain(float gain)  override { if (gain >= 0 && gain <= 1000) { _ext_gyro_gain_std.set(gain); }}
 
     // has_flybar - returns true if we have a mechical flybar
     bool has_flybar() const  override { return _flybar_mode; }

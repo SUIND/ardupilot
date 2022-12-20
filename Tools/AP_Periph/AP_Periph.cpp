@@ -57,15 +57,6 @@ void loop(void)
 
 static uint32_t start_ms;
 
-/*
-  declare constant app_descriptor in flash
- */
-#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-const struct app_descriptor app_descriptor __attribute__((section(".app_descriptor")));
-#else
-const struct app_descriptor app_descriptor;
-#endif
-
 AP_Periph_FW::AP_Periph_FW()
 #if HAL_LOGGING_ENABLED
     : logger(g.log_bitmask)
@@ -131,12 +122,7 @@ void AP_Periph_FW::init()
     logger.Init(log_structure, ARRAY_SIZE(log_structure));
 #endif
 
-    printf("Booting %08x:%08x %u/%u len=%u 0x%08x\n",
-           app_descriptor.image_crc1,
-           app_descriptor.image_crc2,
-           app_descriptor.version_major, app_descriptor.version_minor,
-           app_descriptor.image_size,
-           app_descriptor.git_hash);
+    check_firmware_print();
 
     if (hal.util->was_watchdog_reset()) {
         printf("Reboot after watchdog reset\n");
@@ -228,6 +214,17 @@ void AP_Periph_FW::init()
     }
 #endif
 
+#ifdef HAL_PERIPH_ENABLE_PRX
+    if (proximity.get_type(0) != AP_Proximity::Type::None && g.proximity_port >= 0) {
+        auto *uart = hal.serial(g.proximity_port);
+        if (uart != nullptr) {
+            uart->begin(g.proximity_baud);
+            serial_manager.set_protocol_and_baud(g.proximity_port, AP_SerialManager::SerialProtocol_Lidar360, g.proximity_baud);
+            proximity.init();
+        }
+    }
+#endif
+
 #ifdef HAL_PERIPH_ENABLE_PWM_HARDPOINT
     pwm_hardpoint_init();
 #endif
@@ -242,6 +239,10 @@ void AP_Periph_FW::init()
     }
 #endif
     
+#if AP_TEMPERATURE_SENSOR_ENABLED
+    temperature_sensor.init();
+#endif
+
 #ifdef HAL_PERIPH_ENABLE_NOTIFY
     notify.init();
 #endif
@@ -438,6 +439,10 @@ void AP_Periph_FW::update()
         gcs().update_send();
 #endif
     }
+
+#if AP_TEMPERATURE_SENSOR_ENABLED
+    temperature_sensor.update();
+#endif
 
 #if HAL_LOGGING_ENABLED
     logger.periodic_tasks();

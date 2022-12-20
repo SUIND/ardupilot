@@ -26,7 +26,6 @@
 #include "SIM_IntelligentEnergy24.h"
 #include "SIM_Ship.h"
 #include "SIM_GPS.h"
-#include <AP_RangeFinder/AP_RangeFinder.h>
 
 namespace SITL {
 
@@ -64,8 +63,8 @@ struct sitl_fdm {
     double battery_current; // Amps
     double battery_remaining; // Ah, if non-zero capacity
     uint8_t num_motors;
-    uint8_t vtol_motor_start;
-    float rpm[12];         // RPM of all motors
+    uint32_t motor_mask;
+    float rpm[32];         // RPM of all motors
     uint8_t rcin_chan_count;
     float  rcin[12];         // RC input 0..1
     double range;           // rangefinder value
@@ -78,7 +77,8 @@ struct sitl_fdm {
         struct float_array ranges;
     } scanner;
 
-    float rangefinder_m[RANGEFINDER_MAX_INSTANCES];
+    #define SITL_NUM_RANGEFINDERS 10
+    float rangefinder_m[SITL_NUM_RANGEFINDERS];
     float airspeed_raw_pressure[AIRSPEED_MAX_SENSORS];
 
     struct {
@@ -87,6 +87,9 @@ struct sitl_fdm {
     } wind_vane_apparent;
 
     bool is_lock_step_scheduled;
+
+    // earthframe wind, from backends that know it
+    Vector3f wind_ef;
 };
 
 // number of rc output channels
@@ -96,10 +99,6 @@ class SIM {
 public:
 
     SIM() {
-        // set a default compass offset
-        for (uint8_t i = 0; i < HAL_COMPASS_MAX_SENSORS; i++) {
-            mag_ofs[i].set(Vector3f(5, 13, -18));
-        }
         AP_Param::setup_object_defaults(this, var_info);
         AP_Param::setup_object_defaults(this, var_info2);
         AP_Param::setup_object_defaults(this, var_info3);
@@ -117,6 +116,10 @@ public:
         for (uint8_t i=0; i<AIRSPEED_MAX_SENSORS; i++) {
             AP_Param::setup_object_defaults(&airspeed[i], airspeed[i].var_info);
         }
+        // set compass offset
+        for (uint8_t i = 0; i < HAL_COMPASS_MAX_SENSORS; i++) {
+            mag_ofs[i].set(Vector3f(5, 13, -18));
+        }
         if (_singleton != nullptr) {
             AP_HAL::panic("Too many SITL instances");
         }
@@ -124,8 +127,7 @@ public:
     }
 
     /* Do not allow copies */
-    SIM(const SIM &other) = delete;
-    SIM &operator=(const SIM&) = delete;
+    CLASS_NO_COPY(SIM);
 
     static SIM *_singleton;
     static SIM *get_singleton() { return _singleton; }
@@ -207,6 +209,9 @@ public:
     AP_Float gps_init_lon_ofs;
     AP_Float gps_init_alt_ofs;
 
+    // log number for GPS::update_file()
+    AP_Int16 gps_log_num;
+
     AP_Float batt_voltage; // battery voltage base
     AP_Float batt_capacity_ah; // battery capacity in Ah
     AP_Int8  rc_fail;     // fail RC input
@@ -228,6 +233,7 @@ public:
     AP_Int32 mag_devid[MAX_CONNECTED_MAGS]; // Mag devid
     AP_Float buoyancy; // submarine buoyancy in Newtons
     AP_Int16 loop_rate_hz;
+    AP_Int16 loop_time_jitter_us;
     AP_Int32 on_hardware_output_enable_mask;  // mask of output channels passed through to actual hardware
 
 #ifdef SFML_JOYSTICK
@@ -251,6 +257,8 @@ public:
         AP_Float wcof_xn;
         AP_Float wcof_yp;
         AP_Float wcof_yn;
+        AP_Float wcof_zp;
+        AP_Float wcof_zn;
     };
     BaroParm baro[BARO_MAX_INSTANCES];
 
@@ -334,6 +342,9 @@ public:
     // what harmonics to generate
     AP_Int16 vibe_motor_harmonics;
 
+    // what servos are motors
+    AP_Int32 vibe_motor_mask;
+    
     // minimum throttle for addition of ins noise
     AP_Float ins_noise_throttle_min;
 
@@ -384,10 +395,10 @@ public:
         return (AP_HAL::Util::safety_state)_safety_switch_state.get();
     }
     void force_safety_off() {
-        _safety_switch_state = (uint8_t)AP_HAL::Util::SAFETY_ARMED;
+        _safety_switch_state.set((uint8_t)AP_HAL::Util::SAFETY_ARMED);
     }
     bool force_safety_on() {
-        _safety_switch_state = (uint8_t)AP_HAL::Util::SAFETY_DISARMED;
+        _safety_switch_state.set((uint8_t)AP_HAL::Util::SAFETY_DISARMED);
         return true;
     }
 
@@ -438,6 +449,8 @@ public:
 
     // ESC telemetry
     AP_Int8 esc_telem;
+    // RPM when motors are armed
+    AP_Float esc_rpm_armed;
 
     struct {
         // LED state, for serial LED emulation

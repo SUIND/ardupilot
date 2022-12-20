@@ -10,6 +10,7 @@
 
 #include <SITL/SIM_Multicopter.h>
 #include <SITL/SIM_Plane.h>
+#include <AP_Vehicle/AP_Vehicle_Type.h>
 
 #include <AP_Baro/AP_Baro.h>
 
@@ -42,9 +43,6 @@ void SIMState::_sitl_setup(const char *home_str)
     _home_str = home_str;
 
     printf("Starting SITL input\n");
-
-    // find the barometer object if it exists
-    _barometer = AP_Baro::get_singleton();
 }
 
 
@@ -115,6 +113,9 @@ void SIMState::fdm_input_local(void)
     }
     if (benewake_tfmini != nullptr) {
         benewake_tfmini->update(sitl_model->rangefinder_range());
+    }
+    if (teraranger_serial != nullptr) {
+        teraranger_serial->update(sitl_model->rangefinder_range());
     }
     if (lightwareserial != nullptr) {
         lightwareserial->update(sitl_model->rangefinder_range());
@@ -230,6 +231,9 @@ void SIMState::_simulator_servos(struct sitl_input &input)
     // output at chosen framerate
     uint32_t now = AP_HAL::micros();
     // last_update_usec = now;
+
+    // find the barometer object if it exists
+    const auto *_barometer = AP_Baro::get_singleton();
 
     float altitude = _barometer?_barometer->get_altitude():0;
     float wind_speed = 0;

@@ -59,7 +59,9 @@
 #include "AP_UAVCAN_DNA_Server.h"
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Notify/AP_Notify.h>
+#include <AP_OpenDroneID/AP_OpenDroneID.h>
 #include "AP_UAVCAN_pool.h"
+#include <AP_Proximity/AP_Proximity_DroneCAN.h>
 
 #define LED_DELAY_US 50000
 
@@ -122,7 +124,7 @@ const AP_Param::GroupInfo AP_UAVCAN::var_info[] = {
     // @Param: OPTION
     // @DisplayName: UAVCAN options
     // @Description: Option flags
-    // @Bitmask: 0:ClearDNADatabase,1:IgnoreDNANodeConflicts,2:EnableCanfd
+    // @Bitmask: 0:ClearDNADatabase,1:IgnoreDNANodeConflicts,2:EnableCanfd,3:IgnoreDNANodeUnhealthy,4:SendServoAsPWM
     // @User: Advanced
     AP_GROUPINFO("OPTION", 5, AP_UAVCAN, _options, 0),
     
@@ -322,8 +324,14 @@ void AP_UAVCAN::init(uint8_t driver_index, bool enable_filters)
         return;
     }
 
+    _dna_server = new AP_UAVCAN_DNA_Server(this, StorageAccess(StorageManager::StorageCANDNA));
+    if (_dna_server == nullptr) {
+        debug_uavcan(AP_CANManager::LOG_ERROR, "UAVCAN: couldn't allocate DNA server\n\r");
+        return;
+    }
+
     //Start Servers
-    if (!AP::uavcan_dna_server().init(this)) {
+    if (!_dna_server->init()) {
         debug_uavcan(AP_CANManager::LOG_ERROR, "UAVCAN: Failed to start DNA Server\n\r");
         return;
     }
@@ -345,8 +353,12 @@ void AP_UAVCAN::init(uint8_t driver_index, bool enable_filters)
 #if AP_RANGEFINDER_UAVCAN_ENABLED
     AP_RangeFinder_UAVCAN::subscribe_msgs(this);
 #endif
-#if HAL_EFI_ENABLED
+#if HAL_EFI_DRONECAN_ENABLED
     AP_EFI_DroneCAN::subscribe_msgs(this);
+#endif
+
+#if AP_PROXIMITY_DRONECAN_ENABLED
+    AP_Proximity_DroneCAN::subscribe_msgs(this);
 #endif
 
     act_out_array[driver_index] = new uavcan::Publisher<uavcan::equipment::actuator::ArrayCommand>(*_node);
@@ -483,7 +495,11 @@ void AP_UAVCAN::loop(void)
         notify_state_send();
         send_parameter_request();
         send_parameter_save_request();
-        AP::uavcan_dna_server().verify_nodes(this);
+        _dna_server->verify_nodes();
+#if AP_OPENDRONEID_ENABLED
+        AP::opendroneid().dronecan_send(this);
+#endif
+        logging();
     }
 }
 
@@ -518,11 +534,13 @@ void AP_UAVCAN::SRV_send_actuator(void)
             if (_SRV_conf[starting_servo].servo_pending && ((((uint32_t) 1) << starting_servo) & _servo_bm)) {
                 cmd.actuator_id = starting_servo + 1;
 
-                // TODO: other types
-                cmd.command_type = uavcan::equipment::actuator::Command::COMMAND_TYPE_UNITLESS;
-
-                // TODO: failsafe, safety
-                cmd.command_value = constrain_float(((float) _SRV_conf[starting_servo].pulse - 1000.0) / 500.0 - 1.0, -1.0, 1.0);
+                if (option_is_set(Options::USE_ACTUATOR_PWM)) {
+                    cmd.command_type = uavcan::equipment::actuator::Command::COMMAND_TYPE_PWM;
+                    cmd.command_value = _SRV_conf[starting_servo].pulse;
+                } else {
+                    cmd.command_type = uavcan::equipment::actuator::Command::COMMAND_TYPE_UNITLESS;
+                    cmd.command_value = constrain_float(((float) _SRV_conf[starting_servo].pulse - 1000.0) / 500.0 - 1.0, -1.0, 1.0);
+                }
 
                 msg.commands.push_back(cmd);
 
@@ -531,7 +549,11 @@ void AP_UAVCAN::SRV_send_actuator(void)
         }
 
         if (i > 0) {
-            act_out_array[_driver_index]->broadcast(msg);
+            if (act_out_array[_driver_index]->broadcast(msg) > 0) {
+                _srv_send_count++;
+            } else {
+                _fail_send_count++;
+            }
 
             if (i == 15) {
                 repeat_send = true;
@@ -582,7 +604,11 @@ void AP_UAVCAN::SRV_send_esc(void)
             k++;
         }
 
-        esc_raw[_driver_index]->broadcast(esc_msg);
+        if (esc_raw[_driver_index]->broadcast(esc_msg) > 0) {
+            _esc_send_count++;
+        } else {
+            _fail_send_count++;
+        }
     }
 }
 
@@ -987,9 +1013,9 @@ void AP_UAVCAN::handle_ESC_status(AP_UAVCAN* ap_uavcan, uint8_t node_id, const E
 
     ap_uavcan->update_rpm(esc_index, cb.msg->rpm);
     ap_uavcan->update_telem_data(esc_index, t,
-        AP_ESC_Telem_Backend::TelemetryType::CURRENT
-            | AP_ESC_Telem_Backend::TelemetryType::VOLTAGE
-            | AP_ESC_Telem_Backend::TelemetryType::TEMPERATURE);
+        (isnanf(cb.msg->current) ? 0 : AP_ESC_Telem_Backend::TelemetryType::CURRENT)
+            | (isnanf(cb.msg->voltage) ? 0 : AP_ESC_Telem_Backend::TelemetryType::VOLTAGE)
+            | (isnanf(cb.msg->temperature) ? 0 : AP_ESC_Telem_Backend::TelemetryType::TEMPERATURE));
 #endif
 }
 
@@ -1196,6 +1222,61 @@ bool AP_UAVCAN::check_and_reset_option(Options option)
         _options.set_and_save(int16_t(_options.get() & ~uint16_t(option)));
     }
     return ret;
+}
+
+// handle prearm check
+bool AP_UAVCAN::prearm_check(char* fail_msg, uint8_t fail_msg_len) const
+{
+    // forward this to DNA_Server
+    return _dna_server->prearm_check(fail_msg, fail_msg_len);
+}
+
+/*
+  periodic logging
+ */
+void AP_UAVCAN::logging(void)
+{
+#if HAL_LOGGING_ENABLED
+    const uint32_t now_ms = AP_HAL::millis();
+    if (now_ms - last_log_ms < 1000) {
+        return;
+    }
+    last_log_ms = now_ms;
+    if (HAL_NUM_CAN_IFACES <= _driver_index) {
+        // no interface?
+        return;
+    }
+    const auto *iface = hal.can[_driver_index];
+    if (iface == nullptr) {
+        return;
+    }
+    const auto *stats = iface->get_statistics();
+    if (stats == nullptr) {
+        // statistics not implemented on this interface
+        return;
+    }
+    const auto &s = *stats;
+    AP::logger().WriteStreaming("CANS",
+                                "TimeUS,I,T,Trq,Trej,Tov,Tto,Tab,R,Rov,Rer,Bo,Etx,Stx,Ftx",
+                                "s#-------------",
+                                "F--------------",
+                                "QBIIIIIIIIIIIII",
+                                AP_HAL::micros64(),
+                                _driver_index,
+                                s.tx_success,
+                                s.tx_requests,
+                                s.tx_rejected,
+                                s.tx_overflow,
+                                s.tx_timedout,
+                                s.tx_abort,
+                                s.rx_received,
+                                s.rx_overflow,
+                                s.rx_errors,
+                                s.num_busoff_err,
+                                _esc_send_count,
+                                _srv_send_count,
+                                _fail_send_count);
+#endif // HAL_LOGGING_ENABLED
 }
 
 #endif // HAL_NUM_CAN_IFACES
