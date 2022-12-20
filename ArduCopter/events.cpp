@@ -277,23 +277,23 @@ void Copter::failsafe_companion_on_event(void)
     RC_Channels::clear_overrides();
 
     // convert the desired failsafe response to the Failsafe_Action enum
-    Failsafe_Action desired_action;
+    FailsafeAction desired_action;
 
     // Conditions to deviate from FS_GCS_ENABLE parameter setting
     if (!motors->armed()) {
-        desired_action = Failsafe_Action_None;
+        desired_action = FailsafeAction::NONE;
     }
     else if (g2.fs_companion_action == 0) {
-        desired_action = Failsafe_Action_None;
+        desired_action = FailsafeAction::NONE;
     }
     else if (g2.fs_companion_action == 1) {
-        desired_action = Failsafe_Action_Land;
+        desired_action = FailsafeAction::LAND;
     }
     else if (g2.fs_companion_action == 2) {
-        desired_action = Failsafe_Action_RTL;
+        desired_action = FailsafeAction::RTL;
     }
     else {
-        desired_action = Failsafe_Action_Land;
+        desired_action = FailsafeAction::LAND;
     }
     gcs().send_text(MAV_SEVERITY_WARNING, "Companion Failsafe (only triggered in guided)");
     if (flightmode->mode_number() == Mode::Number::GUIDED) {

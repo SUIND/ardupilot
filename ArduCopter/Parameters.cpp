@@ -1188,7 +1188,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 1
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("AUTO_SPRAY_EN", 49, ParametersG2, auto_spray_enable, 1),
+    AP_GROUPINFO("AUTO_SPRAY_EN", 61, ParametersG2, auto_spray_enable, 1),
 
     AP_GROUPEND
 };

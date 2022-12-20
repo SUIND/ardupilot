@@ -59,8 +59,6 @@ void Mode::_TakeOff::start(float alt_cm)
 {
     // indicate we are taking off
     copter.set_land_complete(false);
-    // tell position controller to reset alt target and reset I terms
-    copter.flightmode->set_throttle_takeoff();
 
     // initialise takeoff state
     _running = true;
@@ -251,7 +249,7 @@ void Mode::alt_takeoff_run()
 
     // get pilot desired lean angles
     float target_roll, target_pitch;
-    get_pilot_desired_lean_angles(target_roll, target_pitch, copter.aparm.angle_max, attitude_control->get_althold_lean_angle_max());
+    get_pilot_desired_lean_angles(target_roll, target_pitch, copter.aparm.angle_max, attitude_control->get_althold_lean_angle_max_cd());
 
     float target_yaw_rate = 0;
 

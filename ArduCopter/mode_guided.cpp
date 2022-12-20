@@ -140,15 +140,15 @@ bool ModeGuided::do_user_takeoff_start(float takeoff_alt_cm)
 //        return false;
 //    }
 
-    guided_mode = SubMode::TakeOff;
-
     // initialise yaw
     auto_yaw.set_mode(AUTO_YAW_HOLD);
 
     // clear i term when we're taking off
     pos_control->init_z_controller();
 
-    // initialise alt for WP_NAVALT_MIN and set completion alt
+    // get initial alt for WP_NAVALT_MIN
+    int32_t alt_target_cm = takeoff_alt_cm;
+    bool alt_target_terrain = false;
     auto_takeoff_start(alt_target_cm, alt_target_terrain);
 
     // record takeoff has not completed
