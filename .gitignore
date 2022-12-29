@@ -153,3 +153,4 @@ modules/esp_idf
 *.files
 *.creator
 *.user
+*.out
