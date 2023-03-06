@@ -654,6 +654,8 @@ public:
     AP_Int8 fs_companion_action;
 
     AP_Int8 auto_spray_enable;
+
+    AP_Float spray_flight_speed;
 };
 
 extern const AP_Param::Info        var_info[];

@@ -1096,6 +1096,15 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("AUTO_SPRAY_EN", 49, ParametersG2, auto_spray_enable, 1),
 
+    // @Param: SPRAY_FLT_SPEED
+    // @DisplayName: Flight Speed During Spray Mission
+    // @Description: This will be the target flight speed in spray mission
+    // @Units: m/s
+    // @Range: 1 10
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("SPRAY_FLT_SPEED", 50, ParametersG2, spray_flight_speed, 1),
+
     AP_GROUPEND
 };
 
