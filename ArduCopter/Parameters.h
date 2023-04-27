@@ -680,6 +680,10 @@ public:
     AP_Int8 auto_spray_enable;
 
     AP_Float spray_flight_speed;
+
+    AP_Float spray_rate_max;
+
+    AP_Float spray_takeoff_height;
 };
 
 extern const AP_Param::Info        var_info[];

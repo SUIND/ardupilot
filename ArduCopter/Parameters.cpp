@@ -1199,6 +1199,24 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("SPRAY_FLT_SPEED", 50, ParametersG2, spray_flight_speed, 1),
 
+    // @Param: SPRAY_RATE_MAX
+    // @DisplayName: Spray Rate At Max Speed
+    // @Description: This will be the target spray rate at max speed
+    // @Units: l/s
+    // @Range: 0 0.1
+    // @Increment: 0.001
+    // @User: Standard
+    AP_GROUPINFO("SPRAY_RATE_MAX", 51, ParametersG2, spray_rate_max, 1),
+
+    // @Param: SPRAY_TKO_ALT
+    // @DisplayName: Takeoff altitude in spray mode
+    // @Description: This will be the takeoff height in spray mode
+    // @Units: m
+    // @Range: 0 50
+    // @Increment: 0.5
+    // @User: Standard
+    AP_GROUPINFO("SPRAY_TKO_ALT", 52, ParametersG2, spray_takeoff_height, 1),
+
     AP_GROUPEND
 };
 
