@@ -153,6 +153,8 @@ const AP_Param::GroupInfo AC_AttitudeControl::var_info[] = {
     AP_GROUPEND
 };
 
+constexpr Vector3f AC_AttitudeControl::VECTORF_111;
+
 // get the slew yaw rate limit in deg/s
 float AC_AttitudeControl::get_slew_yaw_max_degs() const
 {
@@ -167,7 +169,7 @@ void AC_AttitudeControl::relax_attitude_controllers()
 {
     // Initialize the attitude variables to the current attitude
     _ahrs.get_quat_body_to_ned(_attitude_target);
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
     _attitude_ang_error.initialise();
 
     // Initialize the angular rate variables to the current rate
@@ -248,7 +250,7 @@ void AC_AttitudeControl::input_quaternion(Quaternion& attitude_desired_quat, Vec
     }
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     // Convert body-frame angular velocity into euler angle derivative of desired attitude
     ang_vel_to_euler_rate(_euler_angle_target, _ang_vel_target, _euler_rate_target);
@@ -272,7 +274,7 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
     float euler_yaw_rate = radians(euler_yaw_rate_cds * 0.01f);
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     // Add roll trim to compensate tail rotor thrust in heli (will return zero on multirotors)
     euler_roll_angle += get_roll_trim_rad();
@@ -323,7 +325,7 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_yaw(float euler_roll_angle
     float euler_yaw_angle = radians(euler_yaw_angle_cd * 0.01f);
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     // Add roll trim to compensate tail rotor thrust in heli (will return zero on multirotors)
     euler_roll_angle += get_roll_trim_rad();
@@ -382,7 +384,7 @@ void AC_AttitudeControl::input_euler_rate_roll_pitch_yaw(float euler_roll_rate_c
     float euler_yaw_rate = radians(euler_yaw_rate_cds * 0.01f);
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     if (_rate_bf_ff_enabled) {
         // translate the roll pitch and yaw acceleration limits to the euler axis
@@ -424,7 +426,7 @@ void AC_AttitudeControl::input_rate_bf_roll_pitch_yaw(float roll_rate_bf_cds, fl
     float yaw_rate_rads = radians(yaw_rate_bf_cds * 0.01f);
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     if (_rate_bf_ff_enabled) {
         // Compute acceleration-limited body frame rates
@@ -469,7 +471,7 @@ void AC_AttitudeControl::input_rate_bf_roll_pitch_yaw_2(float roll_rate_bf_cds, 
 
     // Update the unused targets attitude based on current attitude to condition mode change
     _ahrs.get_quat_body_to_ned(_attitude_target);
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
     // Convert body-frame angular velocity into euler angle derivative of desired attitude
     ang_vel_to_euler_rate(_euler_angle_target, _ang_vel_target, _euler_rate_target);
     _ang_vel_body = _ang_vel_target;
@@ -514,7 +516,7 @@ void AC_AttitudeControl::input_rate_bf_roll_pitch_yaw_3(float roll_rate_bf_cds, 
     _attitude_target = attitude_body * _attitude_ang_error;
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     // Convert body-frame angular velocity into euler angle derivative of desired attitude
     ang_vel_to_euler_rate(_euler_angle_target, _ang_vel_target, _euler_rate_target);
@@ -544,7 +546,7 @@ void AC_AttitudeControl::input_angle_step_bf_roll_pitch_yaw(float roll_angle_ste
     _attitude_target.normalize();
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     // Set rate feedforward requests to zero
     _euler_rate_target.zero();
@@ -566,7 +568,7 @@ void AC_AttitudeControl::input_thrust_vector_rate_heading(const Vector3f& thrust
     }
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     // convert thrust vector to a quaternion attitude
     Quaternion thrust_vec_quat = attitude_from_thrust_vector(thrust_vector, 0.0f);
@@ -618,7 +620,7 @@ void AC_AttitudeControl::input_thrust_vector_heading(const Vector3f& thrust_vect
     float heading_angle = radians(heading_angle_cd * 0.01f);
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 
     // convert thrust vector and heading to a quaternion attitude
     const Quaternion desired_attitude_quat = attitude_from_thrust_vector(thrust_vector, heading_angle);
@@ -966,7 +968,7 @@ void AC_AttitudeControl::inertial_frame_reset()
     _attitude_target = attitude_body * _attitude_ang_error;
 
     // calculate the attitude target euler angles
-    _attitude_target.to_euler(_euler_angle_target.x, _euler_angle_target.y, _euler_angle_target.z);
+    _attitude_target.to_euler(_euler_angle_target);
 }
 
 // Convert a 321-intrinsic euler angle derivative to an angular velocity vector
@@ -1006,6 +1008,7 @@ bool AC_AttitudeControl::ang_vel_to_euler_rate(const Vector3f& euler_rad, const 
 Vector3f AC_AttitudeControl::update_ang_vel_target_from_att_error(const Vector3f &attitude_error_rot_vec_rad)
 {
     Vector3f rate_target_ang_vel;
+
     // Compute the roll angular velocity demand from the roll angle error
     const float angleP_roll = _p_angle_roll.kP() * _angle_P_scale.x;
     if (_use_sqrt_controller && !is_zero(get_accel_roll_max_radss())) {
@@ -1032,7 +1035,7 @@ Vector3f AC_AttitudeControl::update_ang_vel_target_from_att_error(const Vector3f
 
     // reset angle P scaling, saving used value for logging
     _angle_P_scale_used = _angle_P_scale;
-    _angle_P_scale = Vector3f{1,1,1};
+    _angle_P_scale = VECTORF_111;
 
     return rate_target_ang_vel;
 }

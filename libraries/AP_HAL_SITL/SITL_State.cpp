@@ -86,7 +86,9 @@ void SITL_State::_sitl_setup()
         sitl_model->set_precland(&_sitl->precland_sim);
         _sitl->i2c_sim.init();
         sitl_model->set_i2c(&_sitl->i2c_sim);
-
+#if AP_TEST_DRONECAN_DRIVERS
+        sitl_model->set_dronecan_device(&_sitl->dronecan_sim);
+#endif
         if (_use_fg_view) {
             fg_socket.connect(_fg_address, _fg_view_port);
         }
@@ -519,6 +521,7 @@ void SITL_State::_output_to_flightgear(void)
     fdm.phi   = radians(sfdm.rollDeg);
     fdm.theta = radians(sfdm.pitchDeg);
     fdm.psi   = radians(sfdm.yawDeg);
+    fdm.vcas  = sfdm.velocity_air_bf.length()/0.3048;
     if (_vehicle == ArduCopter) {
         fdm.num_engines = 4;
         for (uint8_t i=0; i<4; i++) {
@@ -909,11 +912,11 @@ void SITL_State::_simulator_servos(struct sitl_input &input)
     }
 
     // assume 3DR power brick
-    voltage_pin_value = float_to_uint16(((voltage / 10.1f) / 5.0f) * 1024);
-    current_pin_value = float_to_uint16(((_current / 17.0f) / 5.0f) * 1024);
+    voltage_pin_voltage = (voltage / 10.1f);
+    current_pin_voltage = _current/17.0f;
     // fake battery2 as just a 25% gain on the first one
-    voltage2_pin_value = float_to_uint16(((voltage * 0.25f / 10.1f) / 5.0f) * 1024);
-    current2_pin_value = float_to_uint16(((_current * 0.25f / 17.0f) / 5.0f) * 1024);
+    voltage2_pin_voltage = voltage_pin_voltage * .25f;
+    current2_pin_voltage = current_pin_voltage * .25f;
 }
 
 void SITL_State::init(int argc, char * const argv[])
@@ -949,7 +952,7 @@ void SITL_State::set_height_agl(void)
         // get height above terrain from AP_Terrain. This assumes
         // AP_Terrain is working
         float terrain_height_amsl;
-        struct Location location;
+        Location location;
         location.lat = _sitl->state.latitude*1.0e7;
         location.lng = _sitl->state.longitude*1.0e7;
 

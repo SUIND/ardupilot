@@ -1,6 +1,7 @@
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/HAL.h>
 #include <AP_Logger/AP_Logger.h>
+#include <AP_Filesystem/AP_Filesystem.h>
 
 #include "lua_bindings.h"
 
@@ -191,19 +192,55 @@ int AP_Logger_Write(lua_State *L) {
         uint8_t index = have_units ? i-5 : i-3;
         uint8_t arg_index = i + arg_offset;
         switch(fmt_cat[index]) {
-            // logger varable types not available to scripting
-            // 'b': int8_t
-            // 'h': int16_t
-            // 'c': int16_t
+            // logger variable types not available to scripting
             // 'd': double
-            // 'H': uint16_t
-            // 'C': uint16_t
             // 'Q': uint64_t
             // 'q': int64_t
             // 'a': arrays
-            case 'i':
-            case 'L':
-            case 'e': {
+            case 'b': { // int8_t
+                int isnum;
+                const lua_Integer tmp1 = lua_tointegerx(L, arg_index, &isnum);
+                if (!isnum || (tmp1 < INT8_MIN) || (tmp1 > INT8_MAX)) {
+                    luaM_free(L, buffer);
+                    luaL_argerror(L, arg_index, "argument out of range");
+                    // no return
+                }
+                int8_t tmp = static_cast<int8_t>(tmp1);
+                memcpy(&buffer[offset], &tmp, sizeof(int8_t));
+                offset += sizeof(int8_t);
+                break;
+            }
+            case 'h': // int16_t
+            case 'c': { // int16_t * 100
+                int isnum;
+                const lua_Integer tmp1 = lua_tointegerx(L, arg_index, &isnum);
+                if (!isnum || (tmp1 < INT16_MIN) || (tmp1 > INT16_MAX)) {
+                    luaM_free(L, buffer);
+                    luaL_argerror(L, arg_index, "argument out of range");
+                    // no return
+                }
+                int16_t tmp = static_cast<int16_t>(tmp1);
+                memcpy(&buffer[offset], &tmp, sizeof(int16_t));
+                offset += sizeof(int16_t);
+                break;
+            }
+            case 'H': // uint16_t
+            case 'C': { // uint16_t * 100
+                int isnum;
+                const lua_Integer tmp1 = lua_tointegerx(L, arg_index, &isnum);
+                if (!isnum || (tmp1 < 0) || (tmp1 > UINT16_MAX)) {
+                    luaM_free(L, buffer);
+                    luaL_argerror(L, arg_index, "argument out of range");
+                    // no return
+                }
+                uint16_t tmp = static_cast<uint16_t>(tmp1);
+                memcpy(&buffer[offset], &tmp, sizeof(uint16_t));
+                offset += sizeof(uint16_t);
+                break;
+            }
+            case 'i': // int32_t
+            case 'L': // int32_t (lat/long)
+            case 'e': { // int32_t * 100
                 int isnum;
                 const lua_Integer tmp1 = lua_tointegerx(L, arg_index, &isnum);
                 if (!isnum) {
@@ -216,7 +253,7 @@ int AP_Logger_Write(lua_State *L) {
                 offset += sizeof(int32_t);
                 break;
             }
-            case 'f': {
+            case 'f': { // float
                 int isnum;
                 const lua_Number tmp1 = lua_tonumberx(L, arg_index, &isnum);
                 if (!isnum) {
@@ -229,12 +266,12 @@ int AP_Logger_Write(lua_State *L) {
                 offset += sizeof(float);
                 break;
             }
-            case 'n': {
+            case 'n': { // char[4]
                 charlen = 4;
                 break;
             }
-            case 'M':
-            case 'B': {
+            case 'M': // uint8_t (flight mode)
+            case 'B': { // uint8_t
                 int isnum;
                 const lua_Integer tmp1 = lua_tointegerx(L, arg_index, &isnum);
                 if (!isnum || (tmp1 < 0) || (tmp1 > UINT8_MAX)) {
@@ -247,8 +284,8 @@ int AP_Logger_Write(lua_State *L) {
                 offset += sizeof(uint8_t);
                 break;
             }
-            case 'I':
-            case 'E': {
+            case 'I': // uint32_t
+            case 'E': { // uint32_t * 100
                 uint32_t tmp;
                 void * ud = luaL_testudata(L, arg_index, "uint32_t");
                 if (ud != nullptr) {
@@ -272,11 +309,11 @@ int AP_Logger_Write(lua_State *L) {
                 offset += sizeof(uint32_t);
                 break;
             }
-            case 'N': {
+            case 'N': { // char[16]
                 charlen = 16;
                 break;
             }
-            case 'Z': {
+            case 'Z': { // char[64]
                 charlen = 64;
                 break;
             }
@@ -345,26 +382,28 @@ int lua_get_i2c_device(lua_State *L) {
         }
     }
 
+    auto *scripting = AP::scripting();
+
     static_assert(SCRIPTING_MAX_NUM_I2C_DEVICE >= 0, "There cannot be a negative number of I2C devices");
-    if (AP::scripting()->num_i2c_devices >= SCRIPTING_MAX_NUM_I2C_DEVICE) {
+    if (scripting->num_i2c_devices >= SCRIPTING_MAX_NUM_I2C_DEVICE) {
         return luaL_argerror(L, 1, "no i2c devices available");
     }
 
-    AP::scripting()->_i2c_dev[AP::scripting()->num_i2c_devices] = new AP_HAL::OwnPtr<AP_HAL::I2CDevice>;
-    if (AP::scripting()->_i2c_dev[AP::scripting()->num_i2c_devices] == nullptr) {
+    scripting->_i2c_dev[scripting->num_i2c_devices] = new AP_HAL::OwnPtr<AP_HAL::I2CDevice>;
+    if (scripting->_i2c_dev[scripting->num_i2c_devices] == nullptr) {
         return luaL_argerror(L, 1, "i2c device nullptr");
     }
 
-    *AP::scripting()->_i2c_dev[AP::scripting()->num_i2c_devices] = std::move(hal.i2c_mgr->get_device(bus, address, bus_clock, use_smbus));
+    *scripting->_i2c_dev[scripting->num_i2c_devices] = std::move(hal.i2c_mgr->get_device(bus, address, bus_clock, use_smbus));
 
-    if (AP::scripting()->_i2c_dev[AP::scripting()->num_i2c_devices] == nullptr || AP::scripting()->_i2c_dev[AP::scripting()->num_i2c_devices]->get() == nullptr) {
+    if (scripting->_i2c_dev[scripting->num_i2c_devices] == nullptr || scripting->_i2c_dev[scripting->num_i2c_devices]->get() == nullptr) {
         return luaL_argerror(L, 1, "i2c device nullptr");
     }
 
     new_AP_HAL__I2CDevice(L);
-    *((AP_HAL::I2CDevice**)luaL_checkudata(L, -1, "AP_HAL::I2CDevice")) = AP::scripting()->_i2c_dev[AP::scripting()->num_i2c_devices]->get();
+    *((AP_HAL::I2CDevice**)luaL_checkudata(L, -1, "AP_HAL::I2CDevice")) = scripting->_i2c_dev[scripting->num_i2c_devices]->get();
 
-    AP::scripting()->num_i2c_devices++;
+    scripting->num_i2c_devices++;
 
     return 1;
 }
@@ -422,15 +461,17 @@ int lua_get_CAN_device(lua_State *L) {
     const uint32_t raw_buffer_len = get_uint32(L, 1 + arg_offset, 1, 25);
     const uint32_t buffer_len = static_cast<uint32_t>(raw_buffer_len);
 
-    if (AP::scripting()->_CAN_dev == nullptr) {
-        AP::scripting()->_CAN_dev = new ScriptingCANSensor(AP_CANManager::Driver_Type::Driver_Type_Scripting);
-        if (AP::scripting()->_CAN_dev == nullptr) {
+    auto *scripting = AP::scripting();
+
+    if (scripting->_CAN_dev == nullptr) {
+        scripting->_CAN_dev = new ScriptingCANSensor(AP_CAN::Protocol::Scripting);
+        if (scripting->_CAN_dev == nullptr) {
             return luaL_argerror(L, 1, "CAN device nullptr");
         }
     }
 
     new_ScriptingCANBuffer(L);
-    *((ScriptingCANBuffer**)luaL_checkudata(L, -1, "ScriptingCANBuffer")) = AP::scripting()->_CAN_dev->add_buffer(buffer_len);
+    *((ScriptingCANBuffer**)luaL_checkudata(L, -1, "ScriptingCANBuffer")) = scripting->_CAN_dev->add_buffer(buffer_len);
 
     return 1;
 }
@@ -445,16 +486,95 @@ int lua_get_CAN_device2(lua_State *L) {
     const uint32_t raw_buffer_len = get_uint32(L, 1 + arg_offset, 1, 25);
     const uint32_t buffer_len = static_cast<uint32_t>(raw_buffer_len);
 
-    if (AP::scripting()->_CAN_dev2 == nullptr) {
-        AP::scripting()->_CAN_dev2 = new ScriptingCANSensor(AP_CANManager::Driver_Type::Driver_Type_Scripting2);
-        if (AP::scripting()->_CAN_dev2 == nullptr) {
+    auto *scripting = AP::scripting();
+
+    if (scripting->_CAN_dev2 == nullptr) {
+        scripting->_CAN_dev2 = new ScriptingCANSensor(AP_CAN::Protocol::Scripting2);
+        if (scripting->_CAN_dev2 == nullptr) {
             return luaL_argerror(L, 1, "CAN device nullptr");
         }
     }
 
     new_ScriptingCANBuffer(L);
-    *((ScriptingCANBuffer**)luaL_checkudata(L, -1, "ScriptingCANBuffer")) = AP::scripting()->_CAN_dev2->add_buffer(buffer_len);
+    *((ScriptingCANBuffer**)luaL_checkudata(L, -1, "ScriptingCANBuffer")) = scripting->_CAN_dev2->add_buffer(buffer_len);
 
     return 1;
 }
 #endif // HAL_MAX_CAN_PROTOCOL_DRIVERS
+
+/*
+  directory listing, return table of files in a directory
+ */
+int lua_dirlist(lua_State *L) {
+    binding_argcheck(L, 1);
+
+    struct dirent *entry;
+    int i;
+    const char *path = luaL_checkstring(L, 1);
+    
+    /* open directory */
+    auto dir = AP::FS().opendir(path);
+    if (dir == nullptr) {  /* error opening the directory? */
+        lua_pushnil(L);  /* return nil and ... */
+        lua_pushstring(L, strerror(errno));  /* error message */
+        return 2;  /* number of results */
+    }
+    
+    /* create result table */
+    lua_newtable(L);
+    i = 1;
+    while ((entry = AP::FS().readdir(dir)) != nullptr) {
+        lua_pushnumber(L, i++);  /* push key */
+        lua_pushstring(L, entry->d_name);  /* push value */
+        lua_settable(L, -3);
+    }
+    
+    AP::FS().closedir(dir);
+    return 1;  /* table is already on top */
+}
+
+/*
+  remove a file
+ */
+int lua_removefile(lua_State *L) {
+    binding_argcheck(L, 1);
+    const char *filename = luaL_checkstring(L, 1);
+    return luaL_fileresult(L, remove(filename) == 0, filename);
+}
+
+// Manual binding to allow SRV_Channels table to see safety state
+int SRV_Channels_get_safety_state(lua_State *L) {
+    binding_argcheck(L, 1);
+    const bool data = hal.util->safety_switch_state() !=  AP_HAL::Util::SAFETY_ARMED;
+    lua_pushboolean(L, data);
+    return 1;
+}
+
+int lua_get_PWMSource(lua_State *L) {
+    binding_argcheck(L, 0);
+
+    auto *scripting = AP::scripting();
+
+    static_assert(SCRIPTING_MAX_NUM_PWM_SOURCE >= 0, "There cannot be a negative number of PWMSources");
+    if (scripting->num_pwm_source >= SCRIPTING_MAX_NUM_PWM_SOURCE) {
+        return luaL_argerror(L, 1, "no PWMSources available");
+    }
+
+    scripting->_pwm_source[scripting->num_pwm_source] = new AP_HAL::PWMSource;
+    if (scripting->_pwm_source[scripting->num_pwm_source] == nullptr) {
+        return luaL_argerror(L, 1, "PWMSources device nullptr");
+    }
+
+    new_AP_HAL__PWMSource(L);
+    *((AP_HAL::PWMSource**)luaL_checkudata(L, -1, "AP_HAL::PWMSource")) = scripting->_pwm_source[scripting->num_pwm_source];
+
+    scripting->num_pwm_source++;
+
+    return 1;
+}
+
+int lua_get_current_ref()
+{
+    auto *scripting = AP::scripting();
+    return scripting->get_current_ref();
+}

@@ -249,13 +249,6 @@ bool AP_MotorsHeli_Dual::init_outputs()
 
     }
 
-    // set signal value for main rotor external governor to know when to use autorotation bailout ramp up
-    if (_main_rotor._rsc_mode.get() == ROTOR_CONTROL_MODE_SETPOINT  ||  _main_rotor._rsc_mode.get() == ROTOR_CONTROL_MODE_PASSTHROUGH) {
-        _main_rotor.set_ext_gov_arot_bail(_main_rotor._ext_gov_arot_pct.get());
-    } else {
-        _main_rotor.set_ext_gov_arot_bail(0);
-    }
-
     // reset swash servo range and endpoints
     for (uint8_t i=0; i<AP_MOTORS_HELI_DUAL_NUM_SWASHPLATE_SERVOS; i++) {
         reset_swash_servo(SRV_Channels::get_motor_function(i));
@@ -313,12 +306,6 @@ void AP_MotorsHeli_Dual::_output_test_seq(uint8_t motor_seq, int16_t pwm)
     }
 }
 
-// set_desired_rotor_speed
-void AP_MotorsHeli_Dual::set_desired_rotor_speed(float desired_speed)
-{
-    _main_rotor.set_desired_speed(desired_speed);
-}
-
 // calculate_armed_scalars
 void AP_MotorsHeli_Dual::calculate_armed_scalars()
 {
@@ -338,13 +325,12 @@ void AP_MotorsHeli_Dual::calculate_armed_scalars()
         _heliflags.save_rsc_mode = false;
     }
 
-    // set bailout ramp time
-    _main_rotor.use_bailout_ramp_time(_heliflags.enable_bailout);
-
-    // allow use of external governor autorotation bailout window on main rotor
-    if (_main_rotor._ext_gov_arot_pct.get() > 0  &&  (_main_rotor._rsc_mode.get() == ROTOR_CONTROL_MODE_SETPOINT  ||  _main_rotor._rsc_mode.get() == ROTOR_CONTROL_MODE_PASSTHROUGH)){
-        // RSC only needs to know that the vehicle is in an autorotation if using the bailout window on an external governor
+    if (_heliflags.in_autorotation) {
         _main_rotor.set_autorotation_flag(_heliflags.in_autorotation);
+        // set bailout ramp time
+        _main_rotor.use_bailout_ramp_time(_heliflags.enable_bailout);
+    }else { 
+        _main_rotor.set_autorotation_flag(false);
     }
 }
 
@@ -469,25 +455,6 @@ float AP_MotorsHeli_Dual::get_swashplate (int8_t swash_num, int8_t swash_axis, f
         }
     }
     return swash_tilt;
-}
-
-// get_motor_mask - returns a bitmask of which outputs are being used for motors or servos (1 means being used)
-//  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
-uint32_t AP_MotorsHeli_Dual::get_motor_mask()
-{
-    // dual heli uses channels 1,2,3,4,5,6 and 8
-    uint32_t mask = 0;
-    for (uint8_t i=0; i<AP_MOTORS_HELI_DUAL_NUM_SWASHPLATE_SERVOS; i++) {
-        mask |= 1U << (AP_MOTORS_MOT_1+i);
-    }
-    if (_swashplate1.get_swash_type() == SWASHPLATE_TYPE_H4_90 || _swashplate1.get_swash_type() == SWASHPLATE_TYPE_H4_45) {
-        mask |= 1U << AP_MOTORS_MOT_7;
-    }
-    if (_swashplate2.get_swash_type() == SWASHPLATE_TYPE_H4_90 || _swashplate2.get_swash_type() == SWASHPLATE_TYPE_H4_45) {
-        mask |= 1U << AP_MOTORS_MOT_8;
-    }
-    mask |= 1U << AP_MOTORS_HELI_RSC;
-    return mask;
 }
 
 // update_motor_controls - sends commands to motor controllers

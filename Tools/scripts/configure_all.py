@@ -68,7 +68,7 @@ def is_ap_periph(board):
     hwdef = os.path.join('libraries/AP_HAL_ChibiOS/hwdef/%s/hwdef.dat' % board)
     try:
         r = open(hwdef, 'r').read()
-        if r.find('periph/hwdef.dat') != -1 or r.find('AP_PERIPH') != -1:
+        if r.find('periph/hwdef.dat') != -1 or r.find('periph/hwdef.inc') != -1 or r.find('AP_PERIPH') != -1:
             print("%s is AP_Periph" % board)
             return True
     except Exception as ex:
@@ -78,6 +78,17 @@ def is_ap_periph(board):
 if args.copy_hwdef_incs_to_directory is not None:
     os.makedirs(args.copy_hwdef_incs_to_directory)
 
+def handle_hwdef_copy(directory, board):
+    source = os.path.join("build", board, "hwdef.h")
+    if board == "iomcu":
+        filename = "hwdef-%s-iomcu.h" % board
+    elif is_ap_periph(board):
+        filename = "hwdef-%s-periph.h" % board
+    else:
+        filename = "hwdef-%s.h" % board
+    target = os.path.join(directory, filename)
+    shutil.copy(source, target)
+
 for board in board_list:
     done.append(board)
     print("Configuring for %s [%u/%u failed=%u]" % (board, len(done), len(board_list), len(failures)))
@@ -86,16 +97,8 @@ for board in board_list:
         config_opts += ["--Werror"]
     if not args.only_bl:
         run_program([args.python, "waf", "configure"] + config_opts, "configure: " + board)
-    if args.copy_hwdef_incs_to_directory is not None:
-        source = os.path.join("build", board, "hwdef.h")
-        if board == "iomcu":
-            filename = "hwdef-%s-iomcu.h" % board
-        elif is_ap_periph(board):
-            filename = "hwdef-%s-periph.h" % board
-        else:
-            filename = "hwdef-%s.h" % board
-        target = os.path.join(args.copy_hwdef_incs_to_directory, filename)
-        shutil.copy(source, target)
+        if args.copy_hwdef_incs_to_directory is not None:
+            handle_hwdef_copy(args.copy_hwdef_incs_to_directory, board)
     if args.build:
         if board == "iomcu":
             target = "iofirmware"
@@ -114,6 +117,9 @@ for board in board_list:
     if os.path.exists(hwdef_bl):
         print("Configuring bootloader for %s" % board)
         run_program([args.python, "waf", "configure", "--board", board, "--bootloader"], "configure: " + board + "-bl")
+        if args.only_bl:
+            if args.copy_hwdef_incs_to_directory is not None:
+                handle_hwdef_copy(args.copy_hwdef_incs_to_directory, board)
         if args.build:
             run_program([args.python, "waf", "bootloader"], "build: " + board + "-bl")
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#define AP_PARAM_VEHICLE_NAME plane
+
 #include <AP_Common/AP_Common.h>
 #include <AP_Gripper/AP_Gripper.h>
 
@@ -353,6 +355,7 @@ public:
         k_param_gcs6,          // stream rates
         k_param_fence,         // vehicle fence - unused
         k_param_acro_yaw_rate,
+        k_param_takeoff_throttle_max_t,
     };
 
     AP_Int16 format_version;

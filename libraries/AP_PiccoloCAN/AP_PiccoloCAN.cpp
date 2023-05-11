@@ -89,7 +89,7 @@ const AP_Param::GroupInfo AP_PiccoloCAN::var_info[] = {
     // @User: Advanced
     // @Range: 1 500
     AP_GROUPINFO("SRV_RT", 4, AP_PiccoloCAN, _srv_hz, PICCOLO_MSG_RATE_HZ_DEFAULT),
-#if HAL_EFI_CURRAWONG_ECU_ENABLED
+#if AP_EFI_CURRAWONG_ECU_ENABLED
     // @Param: ECU_ID
     // @DisplayName: ECU Node ID
     // @Description: Node ID to send ECU throttle messages to. Set to zero to disable ECU throttle messages. Set to 255 to broadcast to all ECUs.
@@ -118,7 +118,7 @@ AP_PiccoloCAN::AP_PiccoloCAN()
 AP_PiccoloCAN *AP_PiccoloCAN::get_pcan(uint8_t driver_index)
 {
     if (driver_index >= AP::can().get_num_drivers() ||
-        AP::can().get_driver_type(driver_index) != AP_CANManager::Driver_Type_PiccoloCAN) {
+        AP::can().get_driver_type(driver_index) != AP_CAN::Protocol::PiccoloCAN) {
         return nullptr;
     }
 
@@ -182,7 +182,7 @@ void AP_PiccoloCAN::loop()
 
     uint16_t esc_tx_counter = 0;
     uint16_t servo_tx_counter = 0;
-#if HAL_EFI_CURRAWONG_ECU_ENABLED
+#if AP_EFI_CURRAWONG_ECU_ENABLED
     uint16_t ecu_tx_counter = 0;
 #endif
 
@@ -207,7 +207,7 @@ void AP_PiccoloCAN::loop()
         _srv_hz.set(constrain_int16(_srv_hz, PICCOLO_MSG_RATE_HZ_MIN, PICCOLO_MSG_RATE_HZ_MAX));
 
         uint16_t servoCmdRateMs = 1000 / _srv_hz;
-#if HAL_EFI_CURRAWONG_ECU_ENABLED
+#if AP_EFI_CURRAWONG_ECU_ENABLED
         _ecu_hz.set(constrain_int16(_ecu_hz, PICCOLO_MSG_RATE_HZ_MIN, PICCOLO_MSG_RATE_HZ_MAX));
 
         uint16_t ecuCmdRateMs = 1000 / _ecu_hz;
@@ -229,7 +229,7 @@ void AP_PiccoloCAN::loop()
             send_servo_messages();
         }
 
-#if HAL_EFI_CURRAWONG_ECU_ENABLED
+#if AP_EFI_CURRAWONG_ECU_ENABLED
         // Transmit ecu throttle commands at regular intervals
         if (ecu_tx_counter++ > ecuCmdRateMs) {
             ecu_tx_counter = 0;
@@ -271,7 +271,7 @@ void AP_PiccoloCAN::loop()
 
                 break;
             case MessageGroup::ECU_OUT:
-            #if HAL_EFI_CURRAWONG_ECU_ENABLED
+            #if AP_EFI_CURRAWONG_ECU_ENABLED
                 if (handle_ecu_message(rxFrame)) {
                     // Returns true if the message was successfully decoded
                 }
@@ -364,12 +364,12 @@ void AP_PiccoloCAN::update()
         }
     }
 
-#if HAL_EFI_CURRAWONG_ECU_ENABLED
+#if AP_EFI_CURRAWONG_ECU_ENABLED
     if (_ecu_id != 0) {
         _ecu_info.command = SRV_Channels::get_output_scaled(SRV_Channel::k_throttle);
         _ecu_info.newCommand = true;
     }
-#endif // HAL_EFI_CURRAWONG_ECU_ENABLED
+#endif // AP_EFI_CURRAWONG_ECU_ENABLED
 
     AP_Logger *logger = AP_Logger::get_singleton();
 
@@ -382,14 +382,24 @@ void AP_PiccoloCAN::update()
             CBSServo_Info_t &servo = _servo_info[ii];
 
             if (servo.newTelemetry) {
-
+                union {
+                    Servo_ErrorBits_t ebits;
+                    uint8_t errors;
+                } err;
+                err.ebits = servo.statusA.errors;
                 logger->Write_ServoStatus(
                     timestamp,
                     ii,
                     (float) servo.statusA.position,         // Servo position (represented in microsecond units)
                     (float) servo.statusB.current * 0.01f, // Servo force (actually servo current, 0.01A per bit)
                     (float) servo.statusB.speed,            // Servo speed (degrees per second)
-                    (uint8_t) abs(servo.statusB.dutyCycle)  // Servo duty cycle (absolute value as it can be +/- 100%)
+                    (uint8_t) abs(servo.statusB.dutyCycle),  // Servo duty cycle (absolute value as it can be +/- 100%)
+                    servo.statusA.command,
+                    servo.statusB.voltage*0.01,
+                    servo.statusB.current*0.01,
+                    servo.statusB.temperature,
+                    servo.statusB.temperature,
+                    err.errors
                 );
 
                 servo.newTelemetry = false;
@@ -743,8 +753,8 @@ bool AP_PiccoloCAN::handle_esc_message(AP_HAL::CANFrame &frame)
         
         AP_ESC_Telem_Backend::TelemetryData telem {};
 
-        telem.voltage = float(esc.voltage) * 0.01f;
-        telem.current = float(esc.current) * 0.01f;
+        telem.voltage = float(esc.voltage) * 0.1f;
+        telem.current = float(esc.current) * 0.1f;
         telem.motor_temp_cdeg = int16_t(esc.motorTemperature * 100);
 
         update_telem_data(addr, telem,
@@ -786,7 +796,7 @@ bool AP_PiccoloCAN::handle_esc_message(AP_HAL::CANFrame &frame)
     return result;
 }
 
-#if HAL_EFI_CURRAWONG_ECU_ENABLED
+#if AP_EFI_CURRAWONG_ECU_ENABLED
 void AP_PiccoloCAN::send_ecu_messages(void)
 {
     AP_HAL::CANFrame txFrame {};
@@ -817,7 +827,7 @@ bool AP_PiccoloCAN::handle_ecu_message(AP_HAL::CANFrame &frame)
     }
     return false;
 }
-#endif // HAL_EFI_CURRAWONG_ECU_ENABLED
+#endif // AP_EFI_CURRAWONG_ECU_ENABLED
 
 /**
  * Check if a given servo channel is "active" (has been configured for Piccolo control output)

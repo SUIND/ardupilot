@@ -175,11 +175,11 @@ class firmware(object):
             self.extf_image = None
         # pad image to 4-byte length
         while ((len(self.image) % 4) != 0):
-            self.image.append('\xff')
+            self.image += bytes(0xFF)
         # pad image to 4-byte length
         if self.extf_image is not None:
             while ((len(self.extf_image) % 4) != 0):
-                self.extf_image.append('\xff')
+                self.extf_image += bytes(0xFF)
 
     def property(self, propname, default=None):
         if propname in self.desc:
@@ -645,7 +645,7 @@ class uploader(object):
         self.__send(uploader.EXTF_ERASE + size_bytes + uploader.EOC)
         self.__getSync()
         last_pct = 0
-        while(True):
+        while True:
             if last_pct < 90:
                 pct = self.__recv_uint8()
                 if last_pct != pct:

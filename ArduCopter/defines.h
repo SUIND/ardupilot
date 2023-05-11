@@ -78,15 +78,13 @@ enum class AirMode {
 
 enum PayloadPlaceStateType {
     PayloadPlaceStateType_FlyToLocation,
-    PayloadPlaceStateType_Calibrating_Hover_Start,
-    PayloadPlaceStateType_Calibrating_Hover,
-    PayloadPlaceStateType_Descending_Start,
-    PayloadPlaceStateType_Descending,
-    PayloadPlaceStateType_Releasing_Start,
+    PayloadPlaceStateType_Descent_Start,
+    PayloadPlaceStateType_Descent,
+    PayloadPlaceStateType_Release,
     PayloadPlaceStateType_Releasing,
-    PayloadPlaceStateType_Released,
-    PayloadPlaceStateType_Ascending_Start,
-    PayloadPlaceStateType_Ascending,
+    PayloadPlaceStateType_Delay,
+    PayloadPlaceStateType_Ascent_Start,
+    PayloadPlaceStateType_Ascent,
     PayloadPlaceStateType_Done,
 };
 
@@ -143,6 +141,7 @@ enum LoggingParameters {
 #define FS_THR_ENABLED_ALWAYS_SMARTRTL_OR_RTL      4
 #define FS_THR_ENABLED_ALWAYS_SMARTRTL_OR_LAND     5
 #define FS_THR_ENABLED_AUTO_RTL_OR_RTL             6
+#define FS_THR_ENABLED_BRAKE_OR_LAND               7
 
 // GCS failsafe definitions (FS_GCS_ENABLE parameter)
 #define FS_GCS_DISABLED                        0

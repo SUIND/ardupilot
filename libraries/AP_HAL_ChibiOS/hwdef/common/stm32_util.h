@@ -16,6 +16,14 @@
 
 #include "hal.h"
 
+#ifndef AP_WATCHDOG_SAVE_FAULT_ENABLED
+#define AP_WATCHDOG_SAVE_FAULT_ENABLED 1
+#endif
+
+#ifndef AP_FASTBOOT_ENABLED
+#define AP_FASTBOOT_ENABLED 1
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -95,7 +103,7 @@ void malloc_init(void);
   read mode of a pin. This allows a pin config to be read, changed and
   then written back
  */
-#if defined(STM32F7) || defined(STM32H7) || defined(STM32F4) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4)
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32F4) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4) ||defined(STM32L4PLUS)
 iomode_t palReadLineMode(ioline_t line);
 
 enum PalPushPull {
@@ -156,7 +164,10 @@ typedef enum  {
 } FaultType;
 
 // Record information about a fault
+#if AP_WATCHDOG_SAVE_FAULT_ENABLED
 void save_fault_watchdog(uint16_t line, FaultType fault_type, uint32_t fault_addr, uint32_t lr);
+#endif
+
 /**
  * Generates a block of random values, returns total values generated
  * if nonblocking, for blocking returns if successful or not

@@ -16,8 +16,11 @@
 
 #define ALLOW_DOUBLE_MATH_FUNCTIONS
 
+#include "AP_ExternalAHRS_config.h"
+
+#if AP_EXTERNAL_AHRS_LORD_ENABLED
+
 #include "AP_ExternalAHRS_LORD.h"
-#if HAL_EXTERNAL_AHRS_LORD_ENABLED
 #include <AP_Baro/AP_Baro.h>
 #include <AP_Compass/AP_Compass.h>
 #include <AP_GPS/AP_GPS.h>
@@ -111,9 +114,8 @@ void AP_ExternalAHRS_LORD::build_packet()
     WITH_SEMAPHORE(sem);
     uint32_t nbytes = MIN(uart->available(), 2048u);
     while (nbytes--> 0) {
-        const int16_t b = uart->read();
-
-        if (b < 0) {
+        uint8_t b;
+        if (!uart->read(b)) {
             break;
         }
 
@@ -262,12 +264,14 @@ void AP_ExternalAHRS_LORD::post_imu() const
         AP::ins().handle_external(ins);
     }
 
+#if AP_COMPASS_EXTERNALAHRS_ENABLED
     {
         AP_ExternalAHRS::mag_data_message_t mag {
             field: imu_data.mag
         };
         AP::compass().handle_external(mag);
     }
+#endif
 
 #if AP_BARO_EXTERNALAHRS_ENABLED
     {
@@ -440,6 +444,12 @@ int8_t AP_ExternalAHRS_LORD::get_port(void) const
     return port_num;
 };
 
+// Get model/type name
+const char* AP_ExternalAHRS_LORD::get_name() const
+{
+    return "LORD";
+}
+
 bool AP_ExternalAHRS_LORD::healthy(void) const
 {
     uint32_t now = AP_HAL::millis();
@@ -575,5 +585,4 @@ double AP_ExternalAHRS_LORD::extract_double(const uint8_t *data, uint8_t offset)
     return *reinterpret_cast<double*>(&tmp);
 }
 
-#endif // HAL_EXTERNAL_AHRS_ENABLED
-
+#endif // AP_EXTERNAL_AHRS_LORD_ENABLE

@@ -31,7 +31,7 @@ public:
     //  target and error are filtered
     //  the derivative is then calculated and filtered
     //  the integral is then updated based on the setting of the limit flag
-    float update_all(float target, float measurement, float dt, bool limit = false);
+    float update_all(float target, float measurement, float dt, bool limit = false, float boost = 1.0f);
 
     //  update_error - set error input to PID controller and calculate outputs
     //  target is set to zero and error is set and filtered
@@ -152,4 +152,15 @@ protected:
     int8_t _slew_limit_scale;
 
     AP_PIDInfo _pid_info;
+
+private:
+    const float default_kp;
+    const float default_ki;
+    const float default_kd;
+    const float default_kff;
+    const float default_kimax;
+    const float default_filt_T_hz;
+    const float default_filt_E_hz;
+    const float default_filt_D_hz;
+    const float default_slew_rate_max;
 };

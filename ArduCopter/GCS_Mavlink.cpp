@@ -6,10 +6,24 @@
 
 MAV_TYPE GCS_Copter::frame_type() const
 {
+    /*
+      for GCS don't give MAV_TYPE_GENERIC as the GCS would have no
+      information and won't display UIs such as flight mode
+      selection
+    */
+#if FRAME_CONFIG == HELI_FRAME
+    const MAV_TYPE mav_type_default = MAV_TYPE_HELICOPTER;
+#else
+    const MAV_TYPE mav_type_default = MAV_TYPE_QUADROTOR;
+#endif
     if (copter.motors == nullptr) {
-        return MAV_TYPE_GENERIC;
+        return mav_type_default;
     }
-    return copter.motors->get_frame_mav_type();
+    MAV_TYPE mav_type = copter.motors->get_frame_mav_type();
+    if (mav_type == MAV_TYPE_GENERIC) {
+        mav_type = mav_type_default;
+    }
+    return mav_type;
 }
 
 MAV_MODE GCS_MAVLINK_Copter::base_mode() const
@@ -300,7 +314,7 @@ void GCS_MAVLINK_Copter::send_pid_tuning()
 // send winch status message
 void GCS_MAVLINK_Copter::send_winch_status() const
 {
-#if WINCH_ENABLED == ENABLED
+#if AP_WINCH_ENABLED
     AP_Winch *winch = AP::winch();
     if (winch == nullptr) {
         return;
@@ -565,6 +579,14 @@ const struct GCS_MAVLINK::stream_entries GCS_MAVLINK::all_stream_entries[] = {
     MAV_STREAM_TERMINATOR // must have this at end of stream_entries
 };
 
+MISSION_STATE GCS_MAVLINK_Copter::mission_state(const class AP_Mission &mission) const
+{
+    if (copter.mode_auto.paused()) {
+        return MISSION_STATE_PAUSED;
+    }
+    return GCS_MAVLINK::mission_state(mission);
+}
+
 bool GCS_MAVLINK_Copter::handle_guided_request(AP_Mission::Mission_Command &cmd)
 {
 #if MODE_AUTO_ENABLED == ENABLED
@@ -626,19 +648,19 @@ void GCS_MAVLINK_Copter::handle_command_ack(const mavlink_message_t &msg)
 */
 void GCS_MAVLINK_Copter::handle_landing_target(const mavlink_landing_target_t &packet, uint32_t timestamp_ms)
 {
-#if PRECISION_LANDING == ENABLED
+#if AC_PRECLAND_ENABLED
     copter.precland.handle_msg(packet, timestamp_ms);
 #endif
 }
 
-MAV_RESULT GCS_MAVLINK_Copter::_handle_command_preflight_calibration(const mavlink_command_long_t &packet)
+MAV_RESULT GCS_MAVLINK_Copter::_handle_command_preflight_calibration(const mavlink_command_long_t &packet, const mavlink_message_t &msg)
 {
     if (is_equal(packet.param6,1.0f)) {
         // compassmot calibration
         return copter.mavlink_compassmot(*this);
     }
 
-    return GCS_MAVLINK::_handle_command_preflight_calibration(packet);
+    return GCS_MAVLINK::_handle_command_preflight_calibration(packet, msg);
 }
 
 
@@ -672,6 +694,7 @@ bool GCS_MAVLINK_Copter::set_home(const Location& loc, bool _lock) {
 
 MAV_RESULT GCS_MAVLINK_Copter::handle_command_int_do_reposition(const mavlink_command_int_t &packet)
 {
+#if MODE_GUIDED_ENABLED == ENABLED
     const bool change_modes = ((int32_t)packet.param2 & MAV_DO_REPOSITION_FLAGS_CHANGE_MODE) == MAV_DO_REPOSITION_FLAGS_CHANGE_MODE;
     if (!copter.flightmode->in_guided_mode() && !change_modes) {
         return MAV_RESULT_DENIED;
@@ -708,6 +731,9 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_command_int_do_reposition(const mavlink_co
     }
 
     return MAV_RESULT_ACCEPTED;
+#else
+    return MAV_RESULT_UNSUPPORTED;
+#endif
 }
 
 MAV_RESULT GCS_MAVLINK_Copter::handle_command_int_packet(const mavlink_command_int_t &packet)
@@ -896,7 +922,7 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_command_long_packet(const mavlink_command_
                                                packet.param4,
                                                (uint8_t)packet.param5);
 
-#if WINCH_ENABLED == ENABLED
+#if AP_WINCH_ENABLED
     case MAV_CMD_DO_WINCH:
         // param1 : winch number (ignored)
         // param2 : action (0=relax, 1=relative length control, 2=rate control). See WINCH_ACTIONS enum.
@@ -1073,6 +1099,7 @@ void GCS_MAVLINK_Copter::handle_manual_control_axes(const mavlink_manual_control
 
 void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
 {
+#if MODE_GUIDED_ENABLED == ENABLED
     // for mavlink SET_POSITION_TARGET messages
     constexpr uint32_t MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE =
         POSITION_TARGET_TYPEMASK_X_IGNORE |
@@ -1095,6 +1122,7 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
         POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE;
     constexpr uint32_t MAVLINK_SET_POS_TYPE_MASK_FORCE_SET =
         POSITION_TARGET_TYPEMASK_FORCE_SET;
+#endif
 
     switch (msg.msgid) {
 
@@ -1477,7 +1505,7 @@ void GCS_MAVLINK_Copter::send_wind() const
 int16_t GCS_MAVLINK_Copter::high_latency_target_altitude() const
 {
     AP_AHRS &ahrs = AP::ahrs();
-    struct Location global_position_current;
+    Location global_position_current;
     UNUSED_RESULT(ahrs.get_location(global_position_current));
 
     //return units are m

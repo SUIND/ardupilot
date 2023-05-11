@@ -4,7 +4,7 @@
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Motors/AP_Motors.h>    // motors library
 #include <AP_Vehicle/AP_Vehicle_Type.h>
-#include <AP_InertialSensor/AP_InertialSensor.h>
+#include <AP_Scheduler/AP_Scheduler.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -344,8 +344,9 @@ void AC_PosControl::input_pos_xyz(const Vector3p& pos, float pos_offset_z, float
     _accel_desired.z -= _accel_offset_z;
 
     // calculated increased maximum acceleration and jerk if over speed
-    float accel_max_z_cmss = _accel_max_z_cmss * calculate_overspeed_gain();
-    float jerk_max_z_cmsss = _jerk_max_z_cmsss * calculate_overspeed_gain();
+    const float overspeed_gain = calculate_overspeed_gain();
+    const float accel_max_z_cmss = _accel_max_z_cmss * overspeed_gain;
+    const float jerk_max_z_cmsss = _jerk_max_z_cmsss * overspeed_gain;
 
     update_pos_vel_accel_xy(_pos_target.xy(), _vel_desired.xy(), _accel_desired.xy(), _dt, _limit_vector.xy(), _p_pos_xy.get_error(), _pid_vel_xy.get_error());
 
@@ -448,8 +449,6 @@ void AC_PosControl::init_xy_controller_stopping_point()
     get_stopping_point_xy_cm(_pos_target.xy());
     _vel_desired.xy().zero();
     _accel_desired.xy().zero();
-
-    _pid_vel_xy.set_integrator(_accel_target);
 }
 
 // relax_velocity_controller_xy - initialise the position controller to the current position and velocity with decaying acceleration.
@@ -513,13 +512,13 @@ void AC_PosControl::init_xy_controller()
     _pid_vel_xy.reset_filter();
     // initialise the I term to _accel_target - _accel_desired
     // _accel_desired is zero and can be removed from the equation
-    _pid_vel_xy.set_integrator(_accel_target);
+    _pid_vel_xy.set_integrator(_accel_target.xy() - _vel_target.xy() * _pid_vel_xy.ff());
 
     // initialise ekf xy reset handler
     init_ekf_xy_reset();
 
     // initialise z_controller time out
-    _last_update_xy_us = AP::ins().get_last_update_usec();
+    _last_update_xy_ticks = AP::scheduler().ticks32();
 }
 
 /// input_accel_xy - calculate a jerk limited path from the current position, velocity and acceleration to an input acceleration.
@@ -590,7 +589,8 @@ void AC_PosControl::stop_vel_xy_stabilisation()
 // is_active_xy - returns true if the xy position controller has bee n run in the previous 5 loop times
 bool AC_PosControl::is_active_xy() const
 {
-    return ((AP::ins().get_last_update_usec() - _last_update_xy_us) <= _dt * 1500000.0);
+    const uint32_t dt_ticks = AP::scheduler().ticks32() - _last_update_xy_ticks;
+    return dt_ticks <= 1;
 }
 
 /// update_xy_controller - runs the horizontal position controller correcting position, velocity and acceleration errors.
@@ -610,7 +610,7 @@ void AC_PosControl::update_xy_controller()
             INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
         }
     }
-    _last_update_xy_us = AP::ins().get_last_update_usec();
+    _last_update_xy_ticks = AP::scheduler().ticks32();
 
     float ahrsGndSpdLimit, ahrsControlScaleXY;
     AP::ahrs().getControlLimits(ahrsGndSpdLimit, ahrsControlScaleXY);
@@ -779,13 +779,11 @@ void AC_PosControl::init_z_controller()
     init_ekf_z_reset();
 
     // initialise z_controller time out
-    _last_update_z_us = AP::ins().get_last_update_usec();
+    _last_update_z_ticks = AP::scheduler().ticks32();
 }
 
-/// input_vel_accel_z - calculate a jerk limited path from the current position, velocity and acceleration to an input velocity and acceleration.
-///     The vel is projected forwards in time based on a time step of dt and acceleration accel.
+/// input_accel_z - calculate a jerk limited path from the current position, velocity and acceleration to an input acceleration.
 ///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
-///     The function alters the vel to be the kinematic path based on accel
 void AC_PosControl::input_accel_z(float accel)
 {
     // calculated increased maximum jerk if over speed
@@ -801,16 +799,12 @@ void AC_PosControl::input_accel_z(float accel)
 ///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
 ///     The kinematic path is constrained by the maximum acceleration and jerk set using the function set_max_speed_accel_z.
 ///     The parameter limit_output specifies if the velocity and acceleration limits are applied to the sum of commanded and correction values or just correction.
-void AC_PosControl::input_vel_accel_z(float &vel, float accel, bool ignore_descent_limit, bool limit_output)
+void AC_PosControl::input_vel_accel_z(float &vel, float accel, bool limit_output)
 {
-    if (ignore_descent_limit) {
-        // turn off limits in the negative z direction
-        _limit_vector.z = MAX(_limit_vector.z, 0.0f);
-    }
-
     // calculated increased maximum acceleration and jerk if over speed
-    float accel_max_z_cmss = _accel_max_z_cmss * calculate_overspeed_gain();
-    float jerk_max_z_cmsss = _jerk_max_z_cmsss * calculate_overspeed_gain();
+    const float overspeed_gain = calculate_overspeed_gain();
+    const float accel_max_z_cmss = _accel_max_z_cmss * overspeed_gain;
+    const float jerk_max_z_cmsss = _jerk_max_z_cmsss * overspeed_gain;
 
     // adjust desired alt if motors have not hit their limits
     update_pos_vel_accel(_pos_target.z, _vel_desired.z, _accel_desired.z, _dt, _limit_vector.z, _p_pos_z.get_error(), _pid_vel_z.get_error());
@@ -834,7 +828,7 @@ void AC_PosControl::set_pos_target_z_from_climb_rate_cm(float vel)
     _accel_desired.z -= _accel_offset_z;
 
     float vel_temp = vel;
-    input_vel_accel_z(vel_temp, 0, false);
+    input_vel_accel_z(vel_temp, 0.0);
 
     // update the vertical position, velocity and acceleration offsets
     update_pos_offset_z(_pos_offset_target_z);
@@ -850,7 +844,12 @@ void AC_PosControl::set_pos_target_z_from_climb_rate_cm(float vel)
 ///     ignore_descent_limit turns off output saturation handling to aid in landing detection. ignore_descent_limit should be false unless landing.
 void AC_PosControl::land_at_climb_rate_cm(float vel, bool ignore_descent_limit)
 {
-    input_vel_accel_z(vel, 0, ignore_descent_limit);
+    if (ignore_descent_limit) {
+        // turn off limits in the negative z direction
+        _limit_vector.z = MAX(_limit_vector.z, 0.0f);
+    }
+
+    input_vel_accel_z(vel, 0.0);
 }
 
 /// input_pos_vel_accel_z - calculate a jerk limited path from the current position, velocity and acceleration to an input position velocity and acceleration.
@@ -861,8 +860,9 @@ void AC_PosControl::land_at_climb_rate_cm(float vel, bool ignore_descent_limit)
 void AC_PosControl::input_pos_vel_accel_z(float &pos, float &vel, float accel, bool limit_output)
 {
     // calculated increased maximum acceleration and jerk if over speed
-    float accel_max_z_cmss = _accel_max_z_cmss * calculate_overspeed_gain();
-    float jerk_max_z_cmsss = _jerk_max_z_cmsss * calculate_overspeed_gain();
+    const float overspeed_gain = calculate_overspeed_gain();
+    const float accel_max_z_cmss = _accel_max_z_cmss * overspeed_gain;
+    const float jerk_max_z_cmsss = _jerk_max_z_cmsss * overspeed_gain;
 
     // adjust desired altitude if motors have not hit their limits
     update_pos_vel_accel(_pos_target.z, _vel_desired.z, _accel_desired.z, _dt, _limit_vector.z, _p_pos_z.get_error(), _pid_vel_z.get_error());
@@ -904,7 +904,8 @@ void AC_PosControl::update_pos_offset_z(float pos_offset_z)
 // is_active_z - returns true if the z position controller has been run in the previous 5 loop times
 bool AC_PosControl::is_active_z() const
 {
-    return ((AP::ins().get_last_update_usec() - _last_update_z_us) <= _dt * 1500000.0);
+    const uint32_t dt_ticks = AP::scheduler().ticks32() - _last_update_z_ticks;
+    return dt_ticks <= 1;
 }
 
 /// update_z_controller - runs the vertical position controller correcting position, velocity and acceleration errors.
@@ -924,7 +925,7 @@ void AC_PosControl::update_z_controller()
             INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
         }
     }
-    _last_update_z_us = AP::ins().get_last_update_usec();
+    _last_update_z_ticks = AP::scheduler().ticks32();
 
     // calculate the target velocity correction
     float pos_target_zf = _pos_target.z;

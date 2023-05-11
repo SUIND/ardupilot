@@ -17,8 +17,11 @@
   Code by Andy Piper
  */
 
+#include "AP_RCProtocol_config.h"
+
+#if AP_RCPROTOCOL_CRSF_ENABLED
+
 #include "AP_RCProtocol.h"
-#include "AP_RCProtocol_SRXL.h"
 #include "AP_RCProtocol_CRSF.h"
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Math/AP_Math.h>
@@ -153,7 +156,11 @@ static const char* get_frame_type(uint8_t byte, uint8_t subtype = 0)
 #define CRSF_DIGITAL_CHANNEL_MAX 1811
 
 
-constexpr uint16_t AP_RCProtocol_CRSF::elrs_air_rates[8];
+const uint16_t AP_RCProtocol_CRSF::RF_MODE_RATES[RFMode::RF_MODE_MAX_MODES] = {
+    4, 50, 150, 250,    // CRSF
+    4, 25, 50, 100, 150, 200, 250, 500  // ELRS
+};
+
 AP_RCProtocol_CRSF* AP_RCProtocol_CRSF::_singleton;
 
 AP_RCProtocol_CRSF::AP_RCProtocol_CRSF(AP_RCProtocol &_frontend) : AP_RCProtocol_Backend(_frontend)
@@ -181,11 +188,23 @@ AP_RCProtocol_CRSF::~AP_RCProtocol_CRSF() {
     _singleton = nullptr;
 }
 
-void AP_RCProtocol_CRSF::process_pulse(uint32_t width_s0, uint32_t width_s1)
-{
-    uint8_t b;
-    if (ss.process_pulse(width_s0, width_s1, b)) {
-        _process_byte(ss.get_byte_timestamp_us(), b);
+// get the protocol string
+const char* AP_RCProtocol_CRSF::get_protocol_string(ProtocolType protocol) const {
+    if (protocol == ProtocolType::PROTOCOL_ELRS) {
+        return "ELRS";
+    } else if (_crsf_v3_active) {
+        return "CRSFv3";
+    } else {
+        return "CRSFv2";
+    }
+}
+
+// return the link rate as defined by the LinkStatistics
+uint16_t AP_RCProtocol_CRSF::get_link_rate(ProtocolType protocol) const {
+    if (protocol == ProtocolType::PROTOCOL_ELRS) {
+        return RF_MODE_RATES[_link_status.rf_mode + RFMode::ELRS_RF_MODE_4HZ];
+    } else {
+        return RF_MODE_RATES[_link_status.rf_mode];
     }
 }
 
@@ -285,8 +304,10 @@ void AP_RCProtocol_CRSF::update(void)
         _last_frame_time_us = now;
     }
 
+#if AP_RC_CHANNEL_ENABLED
     //Check if LQ is to be reported in place of RSSI
     _use_lq_for_rssi = bool(rc().use_crsf_lq_as_rssi());
+#endif
 }
 
 // write out a frame of any type
@@ -370,7 +391,7 @@ bool AP_RCProtocol_CRSF::decode_crsf_packet()
         default:
             break;
     }
-#if HAL_CRSF_TELEM_ENABLED && !APM_BUILD_TYPE(APM_BUILD_iofirmware)
+#if HAL_CRSF_TELEM_ENABLED
     if (AP_CRSF_Telem::process_frame(FrameType(_frame.type), (uint8_t*)&_frame.payload)) {
         process_telemetry();
     }
@@ -386,7 +407,7 @@ bool AP_RCProtocol_CRSF::decode_crsf_packet()
             // now wait for 4ms to account for RX transmission and processing
             hal.scheduler->delay(4);
             // change the baud rate
-            uart->begin(_new_baud_rate, 128, 128);
+            uart->begin(_new_baud_rate);
         }
         _new_baud_rate = 0;
     }
@@ -559,7 +580,7 @@ void AP_RCProtocol_CRSF::start_uart()
     _uart->set_flow_control(AP_HAL::UARTDriver::FLOW_CONTROL_DISABLE);
     _uart->set_blocking_writes(false);
     _uart->set_options(_uart->get_options() & ~AP_HAL::UARTDriver::OPTION_RXINV);
-    _uart->begin(CRSF_BAUDRATE, 128, 128);
+    _uart->begin(get_bootstrap_baud_rate());
 }
 
 // change the baudrate of the protocol if we are able
@@ -570,7 +591,7 @@ bool AP_RCProtocol_CRSF::change_baud_rate(uint32_t baudrate)
         return false;
     }
 #if !defined(STM32H7)
-    if (baudrate > CRSF_BAUDRATE && !uart->is_dma_enabled()) {
+    if (baudrate > get_bootstrap_baud_rate() && !uart->is_dma_enabled()) {
         return false;
     }
 #endif
@@ -581,6 +602,23 @@ bool AP_RCProtocol_CRSF::change_baud_rate(uint32_t baudrate)
     _new_baud_rate = baudrate;
 
     return true;
+}
+
+// change the bootstrap baud rate to ELRS standard if configured
+void AP_RCProtocol_CRSF::process_handshake(uint32_t baudrate)
+{
+    AP_HAL::UARTDriver *uart = get_current_UART();
+
+    // only change the baudrate if we are bootstrapping CRSF
+    if (uart == nullptr
+        || baudrate != CRSF_BAUDRATE
+        || baudrate == get_bootstrap_baud_rate()
+        || uart->get_baud_rate() == get_bootstrap_baud_rate()
+        || (get_rc_protocols_mask() & ((1U<<(uint8_t(AP_RCProtocol::CRSF)+1))+1)) == 0) {
+        return;
+    }
+
+    uart->begin(get_bootstrap_baud_rate());
 }
 
 //returns uplink link quality on 0-255 scale
@@ -594,3 +632,5 @@ namespace AP {
         return AP_RCProtocol_CRSF::get_singleton();
     }
 };
+
+#endif  // AP_RCPROTOCOL_CRSF_ENABLED

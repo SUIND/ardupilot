@@ -35,7 +35,7 @@ public:
     {}
 
     // init - performs any required initialisation for this instance
-    virtual void init() = 0;
+    virtual void init();
 
     // update mount position - should be called periodically
     virtual void update() = 0;
@@ -46,12 +46,17 @@ public:
     // return true if healthy
     virtual bool healthy() const { return true; }
 
+    // return true if this mount accepts roll or pitch targets
+    virtual bool has_roll_control() const;
+    virtual bool has_pitch_control() const;
+
     // returns true if this mount can control its pan (required for multicopters)
     virtual bool has_pan_control() const = 0;
 
-    // get mount's current attitude in euler angles in degrees.  yaw angle is in body-frame
-    // returns true on success
-    bool get_attitude_euler(float& roll_deg, float& pitch_deg, float& yaw_bf_deg);
+    // get attitude as a quaternion.  returns true on success.
+    // att_quat will be an earth-frame quaternion rotated such that
+    // yaw is in body-frame.
+    virtual bool get_attitude_quaternion(Quaternion& att_quat) = 0;
 
     // get mount's mode
     enum MAV_MOUNT_MODE get_mode() const { return _mode; }
@@ -73,6 +78,8 @@ public:
 
     // set_roi_target - sets target location that mount should attempt to point towards
     void set_roi_target(const Location &target_loc);
+    // clear_roi_target - clears target location that mount should attempt to point towards
+    void clear_roi_target();
 
     // set_sys_target - sets system that mount should attempt to point towards
     void set_target_sysid(uint8_t sysid);
@@ -89,6 +96,12 @@ public:
     // send a GIMBAL_DEVICE_ATTITUDE_STATUS message to GCS
     void send_gimbal_device_attitude_status(mavlink_channel_t chan);
 
+    // return gimbal capabilities sent to GCS in the GIMBAL_MANAGER_INFORMATION
+    virtual uint32_t get_gimbal_manager_capability_flags() const;
+
+    // send a GIMBAL_MANAGER_INFORMATION message to GCS
+    void send_gimbal_manager_information(mavlink_channel_t chan);
+
     // handle a GIMBAL_REPORT message
     virtual void handle_gimbal_report(mavlink_channel_t chan, const mavlink_message_t &msg) {}
 
@@ -104,6 +117,12 @@ public:
     // handle GIMBAL_DEVICE_ATTITUDE_STATUS message
     virtual void handle_gimbal_device_attitude_status(const mavlink_message_t &msg) {}
 
+    // accessors for scripting backends
+    virtual bool get_rate_target(float& roll_degs, float& pitch_degs, float& yaw_degs, bool& yaw_is_earth_frame) { return false; }
+    virtual bool get_angle_target(float& roll_deg, float& pitch_deg, float& yaw_deg, bool& yaw_is_earth_frame) { return false; }
+    virtual bool get_location_target(Location &target_loc) { return false; }
+    virtual void set_attitude_euler(float roll_deg, float pitch_deg, float yaw_bf_deg) {};
+
     //
     // camera controls for gimbals that include a camera
     //
@@ -115,16 +134,12 @@ public:
     // set start_recording = true to start record, false to stop recording
     virtual bool record_video(bool start_recording) { return false; }
 
-    // set camera zoom step.  returns true on success
-    // zoom out = -1, hold = 0, zoom in = 1
-    virtual bool set_zoom_step(int8_t zoom_step) { return false; }
+    // set zoom specified as a rate or percentage
+    virtual bool set_zoom(ZoomType zoom_type, float zoom_value) { return false; }
 
-    // set focus in, out or hold.  returns true on success
+    // set focus specified as rate, percentage or auto
     // focus in = -1, focus hold = 0, focus out = 1
-    virtual bool set_manual_focus_step(int8_t focus_step) { return false; }
-
-    // auto focus.  returns true on success
-    virtual bool set_auto_focus() { return false; }
+    virtual bool set_focus(FocusType focus_type, float focus_value) { return false; }
 
 protected:
 
@@ -147,9 +162,6 @@ protected:
 
     // returns true if mavlink heartbeat should be suppressed for this gimbal (only used by Solo gimbal)
     virtual bool suppress_heartbeat() const { return false; }
-
-    // get attitude as a quaternion.  returns true on success
-    virtual bool get_attitude_quaternion(Quaternion& att_quat) = 0;
 
     // get pilot input (in the range -1 to +1) received through RC
     void get_rc_input(float& roll_in, float& pitch_in, float& yaw_in) const;

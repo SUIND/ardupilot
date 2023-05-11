@@ -7,6 +7,34 @@
 
 class AP_Airspeed_Backend;
 
+class AP_Airspeed_Params {
+public:
+    // Constructor
+    AP_Airspeed_Params(void);
+
+    // parameters for each instance
+    AP_Int32 bus_id;
+#ifndef HAL_BUILD_AP_PERIPH
+    AP_Float offset;
+    AP_Float ratio;
+#endif
+    AP_Float psi_range;
+#ifndef HAL_BUILD_AP_PERIPH
+    AP_Int8  use;
+    AP_Int8  pin;
+    AP_Int8  skip_cal;
+    AP_Int8  tube_order;
+#endif
+    AP_Int8  type;
+    AP_Int8  bus;
+#if AP_AIRSPEED_AUTOCAL_ENABLE
+    AP_Int8  autocal;
+#endif
+
+    static const struct AP_Param::GroupInfo var_info[];
+};
+
+
 class Airspeed_Calibration {
 public:
     friend class AP_Airspeed;
@@ -39,8 +67,9 @@ public:
 
     void set_fixedwing_parameters(const class AP_FixedWing *_fixed_wing_parameters);
 
-
     void init(void);
+    void allocate();
+
 
     // indicate which bit in LOG_BITMASK indicates we should log airspeed readings
     void set_log_bit(uint32_t log_bit) { _log_bit = log_bit; }
@@ -172,9 +201,21 @@ public:
 #if AP_AIRSPEED_MSP_ENABLED
     void handle_msp(const MSP::msp_airspeed_data_message_t &pkt);
 #endif
-    
+
+    enum class CalibrationState {
+        NOT_STARTED,
+        IN_PROGRESS,
+        SUCCESS,
+        FAILED
+    };
+    // get aggregate calibration state for the Airspeed library:
+    CalibrationState get_calibration_state() const;
+
 private:
     static AP_Airspeed *_singleton;
+
+    AP_Int8 _enable;
+    bool lib_enabled() const;
 
     AP_Int8 primary_sensor;
     AP_Int8 max_speed_pcnt;
@@ -183,25 +224,9 @@ private:
     AP_Float _wind_warn;
     AP_Float _wind_gate;
 
-    struct {
-        AP_Int32 bus_id;
-#ifndef HAL_BUILD_AP_PERIPH
-        AP_Float offset;
-        AP_Float ratio;
-#endif
-        AP_Float psi_range;
-#ifndef HAL_BUILD_AP_PERIPH
-        AP_Int8  use;
-        AP_Int8  pin;
-        AP_Int8  skip_cal;
-#endif
-        AP_Int8  type;
-        AP_Int8  bus;
-#if AP_AIRSPEED_AUTOCAL_ENABLE
-        AP_Int8  autocal;
-#endif
-        AP_Int8  tube_order;
-    } param[AIRSPEED_MAX_SENSORS];
+    AP_Airspeed_Params param[AIRSPEED_MAX_SENSORS];
+
+    CalibrationState calibration_state[AIRSPEED_MAX_SENSORS];
 
     struct airspeed_state {
         float   raw_airspeed;
@@ -295,6 +320,9 @@ private:
     bool add_backend(AP_Airspeed_Backend *backend);
     
     const AP_FixedWing *fixed_wing_parameters;
+
+    void convert_per_instance();
+
 };
 
 namespace AP {

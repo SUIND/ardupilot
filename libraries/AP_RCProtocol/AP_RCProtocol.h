@@ -24,14 +24,6 @@
 #define MAX_RCIN_CHANNELS 18
 #define MIN_RCIN_CHANNELS  5
 
-#ifndef AP_RCPROTOCOL_FASTSBUS_ENABLED
-  #ifdef IOMCU_FW
-    #define AP_RCPROTOCOL_FASTSBUS_ENABLED 0
-  #else
-    #define AP_RCPROTOCOL_FASTSBUS_ENABLED 1
-  #endif
-#endif
-
 class AP_RCProtocol_Backend;
 
 class AP_RCProtocol {
@@ -43,13 +35,23 @@ public:
     enum rcprotocol_t {
         PPM        =  0,
         IBUS       =  1,
+#if AP_RCPROTOCOL_SBUS_ENABLED
         SBUS       =  2,
+#endif
+#if AP_RCPROTOCOL_SBUS_NI_ENABLED
         SBUS_NI    =  3,
+#endif
         DSM        =  4,
         SUMD       =  5,
+#if AP_RCPROTOCOL_SRXL_ENABLED
         SRXL       =  6,
+#endif
+#if AP_RCPROTOCOL_SRXL2_ENABLED
         SRXL2      =  7,
+#endif
+#if AP_RCPROTOCOL_CRSF_ENABLED
         CRSF       =  8,
+#endif
         ST24       =  9,
 #if AP_RCPROTOCOL_FPORT_ENABLED
         FPORT      = 10,
@@ -92,8 +94,12 @@ public:
 #if AP_RCPROTOCOL_FASTSBUS_ENABLED
         case FASTSBUS:
 #endif
+#if AP_RCPROTOCOL_SBUS_ENABLED
         case SBUS:
+#endif
+#if AP_RCPROTOCOL_SBUS_NI_ENABLED
         case SBUS_NI:
+#endif
         case PPM:
 #if AP_RCPROTOCOL_FPORT_ENABLED
         case FPORT:
@@ -101,12 +107,18 @@ public:
 #if AP_RCPROTOCOL_FPORT2_ENABLED
         case FPORT2:
 #endif
+#if AP_RCPROTOCOL_CRSF_ENABLED
+        case CRSF:
+#endif
             return true;
         case IBUS:
         case SUMD:
+#if AP_RCPROTOCOL_SRXL_ENABLED
         case SRXL:
+#endif
+#if AP_RCPROTOCOL_SRXL2_ENABLED
         case SRXL2:
-        case CRSF:
+#endif
         case ST24:
         case NONE:
             return false;

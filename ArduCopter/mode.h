@@ -147,7 +147,7 @@ protected:
     // pause_descent is true if vehicle should not descend
     void land_run_normal_or_precland(bool pause_descent = false);
 
-#if PRECISION_LANDING == ENABLED
+#if AC_PRECLAND_ENABLED
     // Go towards a position commanded by prec land state machine in order to retry landing
     // The passed in location is expected to be NED and in meters
     void precland_retry_position(const Vector3f &retry_pos);
@@ -225,7 +225,6 @@ protected:
     static float auto_takeoff_no_nav_alt_cm;
 
     // auto takeoff variables
-    static float auto_takeoff_start_alt_cm;     // start altitude expressed as cm above ekf origin
     static float auto_takeoff_complete_alt_cm;  // completion altitude expressed in cm above ekf origin or above terrain (depending upon auto_takeoff_terrain_alt)
     static bool auto_takeoff_terrain_alt;       // true if altitudes are above terrain
     static bool auto_takeoff_complete;          // true when takeoff is complete
@@ -258,7 +257,6 @@ public:
         void set_mode(Mode new_mode);
         Mode default_mode(bool rtl) const;
 
-
         void set_rate(float new_rate_cds);
 
         // set_roi(...): set a "look at" location:
@@ -281,11 +279,11 @@ public:
 
     private:
 
-        // yaw(): main product of AutoYaw; the heading:
-        float yaw();
+        // yaw_cd(): main product of AutoYaw; the heading:
+        float yaw_cd();
 
         // rate_cds(): desired yaw rate in centidegrees/second:
-        float rate_cds() const;
+        float rate_cds();
 
         float look_ahead_yaw();
         float roi_yaw() const;
@@ -464,13 +462,14 @@ public:
     // pause continue in auto mode
     bool pause() override;
     bool resume() override;
+    bool paused() const;
 
     bool loiter_start();
     void rtl_start();
     void takeoff_start(const Location& dest_loc);
-    void wp_start(const Location& dest_loc);
+    bool wp_start(const Location& dest_loc);
     void land_start();
-    void circle_movetoedge_start(const Location &circle_center, float radius_m);
+    void circle_movetoedge_start(const Location &circle_center, float radius_m, bool ccw_turn);
     void circle_start();
     void nav_guided_start();
 
@@ -554,7 +553,7 @@ private:
     void payload_place_run();
     bool payload_place_run_should_run();
     void payload_place_run_hover();
-    void payload_place_run_descend();
+    void payload_place_run_descent();
     void payload_place_run_release();
 
     SubMode _mode = SubMode::TAKEOFF;   // controls which auto controller is run
@@ -586,7 +585,7 @@ private:
 #if PARACHUTE == ENABLED
     void do_parachute(const AP_Mission::Mission_Command& cmd);
 #endif
-#if WINCH_ENABLED == ENABLED
+#if AP_WINCH_ENABLED
     void do_winch(const AP_Mission::Mission_Command& cmd);
 #endif
     void do_payload_place(const AP_Mission::Mission_Command& cmd);
@@ -645,14 +644,13 @@ private:
     State state = State::FlyToLocation;
 
     struct {
-        PayloadPlaceStateType state = PayloadPlaceStateType_Calibrating_Hover_Start; // records state of place (descending, releasing, released, ...)
-        uint32_t hover_start_timestamp; // milliseconds
-        float hover_throttle_level;
-        uint32_t descend_start_timestamp; // milliseconds
-        uint32_t place_start_timestamp; // milliseconds
-        float descend_throttle_level;
-        float descend_start_altitude;
-        float descend_max; // centimetres
+        PayloadPlaceStateType state = PayloadPlaceStateType_Descent_Start; // records state of payload place
+        uint32_t descent_established_time_ms; // milliseconds
+        uint32_t place_start_time_ms; // milliseconds
+        float descent_thrust_level;
+        float descent_start_altitude_cm;
+        float descent_speed_cms;
+        float descent_max_cm;
     } nav_payload_place;
 
     bool waiting_to_start;  // true if waiting for vehicle to be armed or EKF origin before starting mission
@@ -1184,7 +1182,7 @@ public:
     bool has_user_takeoff(bool must_navigate) const override { return true; }
     bool allows_autotune() const override { return true; }
 
-#if PRECISION_LANDING == ENABLED
+#if AC_PRECLAND_ENABLED
     void set_precision_loiter_enabled(bool value) { _precision_loiter_enabled = value; }
 #endif
 
@@ -1197,14 +1195,14 @@ protected:
     int32_t wp_bearing() const override;
     float crosstrack_error() const override { return pos_control->crosstrack_error();}
 
-#if PRECISION_LANDING == ENABLED
+#if AC_PRECLAND_ENABLED
     bool do_precision_loiter();
     void precision_loiter_xy();
 #endif
 
 private:
 
-#if PRECISION_LANDING == ENABLED
+#if AC_PRECLAND_ENABLED
     bool _precision_loiter_enabled;
     bool _precision_loiter_active; // true if user has switched on prec loiter
 #endif
@@ -1321,6 +1319,10 @@ public:
 
     bool use_pilot_yaw() const override;
 
+    bool set_speed_xy(float speed_xy_cms) override;
+    bool set_speed_up(float speed_up_cms) override;
+    bool set_speed_down(float speed_down_cms) override;
+
     // RTL states
     enum class SubMode : uint8_t {
         STARTING,
@@ -1340,7 +1342,7 @@ public:
     void restart_without_terrain();
 
     // enum for RTL_ALT_TYPE parameter
-    enum class RTLAltType {
+    enum class RTLAltType : int8_t {
         RTL_ALTTYPE_RELATIVE = 0,
         RTL_ALTTYPE_TERRAIN = 1
     };
@@ -1797,6 +1799,9 @@ protected:
 
     const char *name() const override { return "ZIGZAG"; }
     const char *name4() const override { return "ZIGZ"; }
+    uint32_t wp_distance() const override;
+    int32_t wp_bearing() const override;
+    float crosstrack_error() const override;
 
 private:
 

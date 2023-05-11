@@ -541,7 +541,7 @@ void Plane::set_servos_controlled(void)
     SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,
                                     constrain_float(SRV_Channels::get_output_scaled(SRV_Channel::k_throttle), min_throttle, max_throttle));
     
-    if (!hal.util->get_soft_armed()) {
+    if (!arming.is_armed_and_safety_off()) {
         if (arming.arming_required() == AP_Arming::Required::YES_ZERO_PWM) {
             SRV_Channels::set_output_limit(SRV_Channel::k_throttle, SRV_Channel::Limit::ZERO_PWM);
             SRV_Channels::set_output_limit(SRV_Channel::k_throttleLeft, SRV_Channel::Limit::ZERO_PWM);
@@ -697,7 +697,7 @@ void Plane::set_servos_flaps(void)
  */
 void Plane::set_landing_gear(void)
 {
-    if (control_mode == &mode_auto && hal.util->get_soft_armed() && is_flying() && gear.last_flight_stage != flight_stage) {
+    if (control_mode == &mode_auto && arming.is_armed_and_safety_off() && is_flying() && gear.last_flight_stage != flight_stage) {
         switch (flight_stage) {
         case AP_FixedWing::FlightStage::LAND:
             g2.landing_gear.deploy_for_landing();
@@ -723,7 +723,7 @@ void Plane::servos_twin_engine_mix(void)
     float rud_gain = float(plane.g2.rudd_dt_gain) * 0.01f;
     rudder_dt = rud_gain * SRV_Channels::get_output_scaled(SRV_Channel::k_rudder) / SERVO_MAX;
 
-#if ADVANCED_FAILSAFE == ENABLED
+#if AP_ADVANCEDFAILSAFE_ENABLED
     if (afs.should_crash_vehicle()) {
         // when in AFS failsafe force rudder input for differential thrust to zero
         rudder_dt = 0;
@@ -743,7 +743,7 @@ void Plane::servos_twin_engine_mix(void)
         throttle_left  = constrain_float(throttle + 50 * rudder_dt, 0, 100);
         throttle_right = constrain_float(throttle - 50 * rudder_dt, 0, 100);
     }
-    if (!hal.util->get_soft_armed()) {
+    if (!arming.is_armed_and_safety_off()) {
         if (arming.arming_required() == AP_Arming::Required::YES_ZERO_PWM) {
             SRV_Channels::set_output_limit(SRV_Channel::k_throttleLeft, SRV_Channel::Limit::ZERO_PWM);
             SRV_Channels::set_output_limit(SRV_Channel::k_throttleRight, SRV_Channel::Limit::ZERO_PWM);
@@ -824,7 +824,7 @@ void Plane::set_servos(void)
     // this is to allow the failsafe module to deliberately crash 
     // the plane. Only used in extreme circumstances to meet the
     // OBC rules
-#if ADVANCED_FAILSAFE == ENABLED
+#if AP_ADVANCEDFAILSAFE_ENABLED
     if (afs.should_crash_vehicle()) {
         afs.terminate_vehicle();
         if (!afs.terminating_vehicle_via_landing()) {
@@ -969,6 +969,23 @@ void Plane::landing_neutral_control_surface_servos(void)
 }
 
 /*
+  sets rudder/vtail , and elevon to indicator positions that we are in a rudder arming waiting for neutral stick state
+*/
+void Plane::indicate_waiting_for_rud_neutral_to_takeoff(void)
+{
+    if (takeoff_state.waiting_for_rudder_neutral)  {
+        SRV_Channels::set_output_scaled(SRV_Channel::k_rudder, 0);
+        channel_function_mixer(SRV_Channel::k_rudder,  SRV_Channel::k_elevator, SRV_Channel::k_vtail_right, SRV_Channel::k_vtail_left);
+        if (!SRV_Channels::function_assigned(SRV_Channel::k_rudder) && !SRV_Channels::function_assigned(SRV_Channel::k_vtail_left)) {
+            // if no rudder indication possible, neutral elevons during wait becuase on takeoff stance they are usually both full up
+            SRV_Channels::set_output_scaled(SRV_Channel::k_elevon_right, 0);
+            SRV_Channels::set_output_scaled(SRV_Channel::k_elevon_left, 0);        
+        }
+    }
+}
+
+
+/*
   run configured output mixer. This takes calculated servo_out values
   for each channel and calculates PWM values, then pushes them to
   hal.rcout
@@ -998,6 +1015,11 @@ void Plane::servos_output(void)
 
     //  set control surface servos to neutral
     landing_neutral_control_surface_servos();
+    
+    // set rudder arm waiting for neutral control throws (rudder neutral, aileron/rt vtail/rt elevon to full right)
+    if (flight_option_enabled(FlightOptions::INDICATE_WAITING_FOR_RUDDER_NEUTRAL)) {
+        indicate_waiting_for_rud_neutral_to_takeoff();
+    }
 
     // support MANUAL_RCMASK
     if (g2.manual_rc_mask.get() != 0 && control_mode == &mode_manual) {
@@ -1033,7 +1055,7 @@ void Plane::servos_auto_trim(void)
     if (!control_mode->does_auto_throttle() && control_mode != &mode_fbwa) {
         return;
     }
-    if (!hal.util->get_soft_armed()) {
+    if (!arming.is_armed_and_safety_off()) {
         return;
     }
     if (!is_flying()) {

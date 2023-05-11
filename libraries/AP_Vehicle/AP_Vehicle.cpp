@@ -17,6 +17,7 @@
 #include <AP_HAL_ChibiOS/sdcard.h>
 #include <AP_HAL_ChibiOS/hwdef/common/stm32_util.h>
 #endif
+#include <AP_DDS/AP_DDS_Client.h>
 
 #define SCHED_TASK(func, rate_hz, max_time_micros, prio) SCHED_TASK_CLASS(AP_Vehicle, &vehicle, func, rate_hz, max_time_micros, prio)
 
@@ -41,9 +42,12 @@ const AP_Param::GroupInfo AP_Vehicle::var_info[] = {
     // @Path: ../AP_VisualOdom/AP_VisualOdom.cpp
     AP_SUBGROUPINFO(visual_odom, "VISO",  3, AP_Vehicle, AP_VisualOdom),
 #endif
+
+#if AP_VIDEOTX_ENABLED
     // @Group: VTX_
     // @Path: ../AP_VideoTX/AP_VideoTX.cpp
     AP_SUBGROUPINFO(vtx, "VTX_",  4, AP_Vehicle, AP_VideoTX),
+#endif
 
 #if HAL_MSP_ENABLED
     // @Group: MSP
@@ -115,6 +119,24 @@ const AP_Param::GroupInfo AP_Vehicle::var_info[] = {
     AP_SUBGROUPINFO(temperature_sensor, "TEMP", 16, AP_Vehicle, AP_TemperatureSensor),
 #endif
 
+#if HAL_NMEA_OUTPUT_ENABLED
+    // @Group: NMEA_
+    // @Path: ../AP_NMEA_Output/AP_NMEA_Output.cpp
+    AP_SUBGROUPINFO(nmea, "NMEA_", 17, AP_Vehicle, AP_NMEA_Output),
+#endif
+
+#if AP_DDS_ENABLED
+    // @Group: DDS
+    // @Path: ../AP_DDS/AP_DDS_Client.cpp
+    AP_SUBGROUPPTR(dds_client, "DDS", 18, AP_Vehicle, AP_DDS_Client),
+#endif
+
+#if AP_KDECAN_ENABLED
+    // @Group: KDE_
+    // @Path: ../AP_KDECAN/AP_KDECAN.cpp
+    AP_SUBGROUPINFO(kdecan, "KDE_",  19, AP_Vehicle, AP_KDECAN),
+#endif
+
     AP_GROUPEND
 };
 
@@ -145,6 +167,9 @@ void AP_Vehicle::setup()
     check_firmware_print();
 #endif
 
+    // validate the static parameter table, then load persistent
+    // values from storage:
+    AP_Param::check_var_info();
     load_parameters();
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
@@ -205,7 +230,7 @@ void AP_Vehicle::setup()
     } 
 #if APM_BUILD_TYPE(APM_BUILD_ArduPlane)
     else {
-        GCS_SEND_TEXT(MAV_SEVERITY_WARNING,"No airspeed sensor present or enabled");
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "No airspeed sensor");
     }
 #endif
 #endif  // AP_AIRSPEED_ENABLED
@@ -229,9 +254,11 @@ void AP_Vehicle::setup()
     visual_odom.init();
 #endif
 
+#if AP_VIDEOTX_ENABLED
     vtx.init();
+#endif
 
-#if HAL_SMARTAUDIO_ENABLED
+#if AP_SMARTAUDIO_ENABLED
     smartaudio.init();
 #endif
 
@@ -262,8 +289,16 @@ void AP_Vehicle::setup()
     temperature_sensor.init();
 #endif
 
+#if AP_KDECAN_ENABLED
+    kdecan.init();
+#endif
+
 #if AP_AIS_ENABLED
     ais.init();
+#endif
+
+#if HAL_NMEA_OUTPUT_ENABLED
+    nmea.init();
 #endif
 
 #if AP_FENCE_ENABLED
@@ -272,7 +307,23 @@ void AP_Vehicle::setup()
 
     custom_rotations.init();
 
+#if HAL_WITH_ESC_TELEM && HAL_GYROFFT_ENABLED
+    for (uint8_t i = 0; i<ESC_TELEM_MAX_ESCS; i++) {
+        esc_noise[i].set_cutoff_frequency(2);
+    }
+#endif
+
+    // invalidate count in case an enable parameter changed during
+    // initialisation
+    AP_Param::invalidate_count();
+
     gcs().send_text(MAV_SEVERITY_INFO, "ArduPilot Ready");
+
+#if AP_DDS_ENABLED
+    if (!init_dds_client()) {
+        gcs().send_text(MAV_SEVERITY_ERROR, "DDS Client: Failed to Initialize");
+    }
+#endif
 }
 
 void AP_Vehicle::loop()
@@ -341,6 +392,9 @@ const AP_Scheduler::Task AP_Vehicle::scheduler_tasks[] = {
 #if COMPASS_CAL_ENABLED
     SCHED_TASK_CLASS(Compass,      &vehicle.compass,        cal_update,     100, 200, 75),
 #endif
+#if HAL_NMEA_OUTPUT_ENABLED
+    SCHED_TASK_CLASS(AP_NMEA_Output, &vehicle.nmea,         update,                   50, 50, 180),
+#endif
 #if HAL_RUNCAM_ENABLED
     SCHED_TASK_CLASS(AP_RunCam,    &vehicle.runcam,         update,                   50, 50, 200),
 #endif
@@ -349,7 +403,9 @@ const AP_Scheduler::Task AP_Vehicle::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AP_GyroFFT,   &vehicle.gyro_fft,       update_parameters,         1, 50, 210),
 #endif
     SCHED_TASK(update_dynamic_notch_at_specified_rate,      LOOP_RATE,                    200, 215),
+#if AP_VIDEOTX_ENABLED
     SCHED_TASK_CLASS(AP_VideoTX,   &vehicle.vtx,            update,                    2, 100, 220),
+#endif
 #if AP_TRAMP_ENABLED
     SCHED_TASK_CLASS(AP_Tramp,     &vehicle.tramp,          update,                   50,  50, 225),
 #endif
@@ -383,6 +439,9 @@ const AP_Scheduler::Task AP_Vehicle::scheduler_tasks[] = {
 #endif
 #if HAL_INS_ACCELCAL_ENABLED
     SCHED_TASK(one_Hz_update,                                                         1, 100, 252),
+#endif
+#if HAL_WITH_ESC_TELEM && HAL_GYROFFT_ENABLED
+    SCHED_TASK(check_motor_noise,      5,     50, 252),
 #endif
     SCHED_TASK(update_arming,          1,     50, 253),
 };
@@ -567,9 +626,21 @@ void AP_Vehicle::update_dynamic_notch(AP_InertialSensor::HarmonicNotch &notch)
                 float notches[INS_MAX_NOTCHES];
                 const uint8_t peaks = gyro_fft.get_weighted_noise_center_frequencies_hz(notch.num_dynamic_notches, notches);
 
-                notch.update_frequencies_hz(peaks, notches);
+                if (peaks > 0) {
+                    for (uint8_t i = 0; i < peaks; i++) {
+                        notches[i] =  MAX(ref_freq, notches[i]);
+                    }
+                    notch.update_frequencies_hz(peaks, notches);
+                } else {    // since FFT can be used post-filter it is better to disable the notch when there is no data
+                    notch.set_inactive(true);
+                }
             } else {
-                notch.update_freq_hz(gyro_fft.get_weighted_noise_center_freq_hz());
+                float center_freq = gyro_fft.get_weighted_noise_center_freq_hz();
+                if (!is_zero(center_freq)) {
+                    notch.update_freq_hz(MAX(ref_freq, center_freq));
+                } else {    // since FFT can be used post-filter it is better to disable the notch when there is no data
+                    notch.set_inactive(true);
+                }
             }
             break;
 #endif
@@ -739,6 +810,46 @@ void AP_Vehicle::one_Hz_update(void)
 #endif
     }
 }
+
+void AP_Vehicle::check_motor_noise()
+{
+#if HAL_GYROFFT_ENABLED && HAL_WITH_ESC_TELEM
+    if (!hal.util->get_soft_armed() || !gyro_fft.check_esc_noise() || !gyro_fft.using_post_filter_samples() || ins.has_fft_notch()) {
+        return;
+    }
+
+    float esc_data[ESC_TELEM_MAX_ESCS];
+    const uint8_t numf = AP::esc_telem().get_motor_frequencies_hz(ESC_TELEM_MAX_ESCS, esc_data);
+    bool output_error = false;
+
+    for (uint8_t i = 0; i<numf; i++) {
+        if (is_zero(esc_data[i])) {
+            continue;
+        }
+        float energy = gyro_fft.has_noise_at_frequency_hz(esc_data[i]);
+        energy = esc_noise[i].apply(energy, 0.2f);
+        if (energy > 40.0f && AP_HAL::millis() - last_motor_noise_ms > 5000) {
+            gcs().send_text(MAV_SEVERITY_WARNING, "Noise %.fdB on motor %u at %.fHz", energy, i+1, esc_data[i]);
+            output_error = true;
+        }
+    }
+
+    if (output_error) {
+        last_motor_noise_ms = AP_HAL::millis();
+    }
+#endif
+}
+
+#if AP_DDS_ENABLED
+bool AP_Vehicle::init_dds_client()
+{
+    dds_client = new AP_DDS_Client();
+    if (dds_client == nullptr) {
+        return false;
+    }
+    return dds_client->start();
+}
+#endif // AP_DDS_ENABLED
 
 AP_Vehicle *AP_Vehicle::_singleton = nullptr;
 

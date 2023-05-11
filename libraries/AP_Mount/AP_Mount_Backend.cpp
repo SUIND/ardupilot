@@ -7,22 +7,23 @@ extern const AP_HAL::HAL& hal;
 
 #define AP_MOUNT_UPDATE_DT 0.02     // update rate in seconds.  update() should be called at this rate
 
-// get mount's current attitude in euler angles in degrees.  yaw angle is in body-frame
-// returns true on success
-bool AP_Mount_Backend::get_attitude_euler(float& roll_deg, float& pitch_deg, float& yaw_bf_deg)
+// Default init function for every mount
+void AP_Mount_Backend::init()
 {
-    // by default re-use get_attitude_quaternion and convert to Euler angles
-    Quaternion att_quat;
-    if (!get_attitude_quaternion(att_quat)) {
-        return false;
-    }
+    // setting default target sysid from parameters
+    _target_sysid = _params.sysid_default.get();
+}
 
-    float roll_rad, pitch_rad, yaw_rad;
-    att_quat.to_euler(roll_rad, pitch_rad, yaw_rad);
-    roll_deg = degrees(roll_rad);
-    pitch_deg = degrees(pitch_rad);
-    yaw_bf_deg = degrees(yaw_rad);
-    return true;
+// return true if this mount accepts roll targets
+bool AP_Mount_Backend::has_roll_control() const
+{
+    return (_params.roll_angle_min < _params.roll_angle_max);
+}
+
+// return true if this mount accepts pitch targets
+bool AP_Mount_Backend::has_pitch_control() const
+{
+    return (_params.pitch_angle_min < _params.pitch_angle_max);
 }
 
 // set angle target in degrees
@@ -66,6 +67,19 @@ void AP_Mount_Backend::set_roi_target(const Location &target_loc)
     set_mode(MAV_MOUNT_MODE_GPS_POINT);
 }
 
+// clear_roi_target - clears target location that mount should attempt to point towards
+void AP_Mount_Backend::clear_roi_target()
+{
+    // clear the target GPS location
+    _roi_target_set = false;
+
+    // reset the mode if in GPS tracking mode
+    if (_mode == MAV_MOUNT_MODE_GPS_POINT) {
+        MAV_MOUNT_MODE default_mode = (MAV_MOUNT_MODE)_params.default_mode.get();
+        set_mode(default_mode);
+    }
+}
+
 // set_sys_target - sets system that mount should attempt to point towards
 void AP_Mount_Backend::set_target_sysid(uint8_t sysid)
 {
@@ -107,6 +121,54 @@ void AP_Mount_Backend::send_gimbal_device_attitude_status(mavlink_channel_t chan
                                                    std::numeric_limits<double>::quiet_NaN(),    // pitch axis angular velocity (NaN for unknown)
                                                    std::numeric_limits<double>::quiet_NaN(),    // yaw axis angular velocity (NaN for unknown)
                                                    0);  // failure flags (not supported)
+}
+
+// return gimbal manager capability flags used by GIMBAL_MANAGER_INFORMATION message
+uint32_t AP_Mount_Backend::get_gimbal_manager_capability_flags() const
+{
+    uint32_t cap_flags = GIMBAL_MANAGER_CAP_FLAGS_HAS_RETRACT |
+                         GIMBAL_MANAGER_CAP_FLAGS_HAS_NEUTRAL |
+                         GIMBAL_MANAGER_CAP_FLAGS_HAS_RC_INPUTS |
+                         GIMBAL_MANAGER_CAP_FLAGS_CAN_POINT_LOCATION_LOCAL |
+                         GIMBAL_MANAGER_CAP_FLAGS_CAN_POINT_LOCATION_GLOBAL;
+
+    // roll control
+    if (has_roll_control()) {
+        cap_flags |= GIMBAL_MANAGER_CAP_FLAGS_HAS_ROLL_AXIS |
+                     GIMBAL_MANAGER_CAP_FLAGS_HAS_ROLL_FOLLOW |
+                     GIMBAL_MANAGER_CAP_FLAGS_HAS_ROLL_LOCK;
+    }
+
+    // pitch control
+    if (has_pitch_control()) {
+        cap_flags |= GIMBAL_MANAGER_CAP_FLAGS_HAS_PITCH_AXIS |
+                     GIMBAL_MANAGER_CAP_FLAGS_HAS_PITCH_FOLLOW |
+                     GIMBAL_MANAGER_CAP_FLAGS_HAS_PITCH_LOCK;
+    }
+
+    // yaw control
+    if (has_pan_control()) {
+        cap_flags |= GIMBAL_MANAGER_CAP_FLAGS_HAS_YAW_AXIS |
+                     GIMBAL_MANAGER_CAP_FLAGS_HAS_YAW_FOLLOW |
+                     GIMBAL_MANAGER_CAP_FLAGS_HAS_YAW_LOCK;
+    }
+
+    return cap_flags;
+}
+
+// send a GIMBAL_MANAGER_INFORMATION message to GCS
+void AP_Mount_Backend::send_gimbal_manager_information(mavlink_channel_t chan)
+{
+    mavlink_msg_gimbal_manager_information_send(chan,
+                                                AP_HAL::millis(),                       // autopilot system time
+                                                get_gimbal_manager_capability_flags(),  // bitmap of gimbal manager capability flags
+                                                _instance,                              // gimbal device id
+                                                radians(_params.roll_angle_min),        // roll_min in radians
+                                                radians(_params.roll_angle_max),        // roll_max in radians
+                                                radians(_params.pitch_angle_min),       // pitch_min in radians
+                                                radians(_params.pitch_angle_max),       // pitch_max in radians
+                                                radians(_params.yaw_angle_min),         // yaw_min in radians
+                                                radians(_params.yaw_angle_max));        // yaw_max in radians
 }
 
 // process MOUNT_CONTROL messages received from GCS. deprecated.

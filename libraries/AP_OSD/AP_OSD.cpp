@@ -39,7 +39,7 @@
 #include <GCS_MAVLink/GCS.h>
 
 // macro for easy use of var_info2
-#define AP_SUBGROUPINFO2(element, name, idx, thisclazz, elclazz) { AP_PARAM_GROUP, idx, name, AP_VAROFFSET(thisclazz, element), { group_info : elclazz::var_info2 }, AP_PARAM_FLAG_NESTED_OFFSET }
+#define AP_SUBGROUPINFO2(element, name, idx, thisclazz, elclazz) { name, AP_VAROFFSET(thisclazz, element), { group_info : elclazz::var_info2 }, AP_PARAM_FLAG_NESTED_OFFSET, idx, AP_PARAM_GROUP }
 
 const AP_Param::GroupInfo AP_OSD::var_info[] = {
 
@@ -85,7 +85,7 @@ const AP_Param::GroupInfo AP_OSD::var_info[] = {
     // @Param: _OPTIONS
     // @DisplayName: OSD Options
     // @Description: This sets options that change the display
-    // @Bitmask: 0:UseDecimalPack, 1:InvertedWindPointer, 2:InvertedAHRoll, 3:Convert feet to miles at 5280ft instead of 10000ft, 4:DisableCrosshair
+    // @Bitmask: 0:UseDecimalPack, 1:InvertedWindArrow, 2:InvertedAHRoll, 3:Convert feet to miles at 5280ft instead of 10000ft, 4:DisableCrosshair, 5:TranslateArrows
     // @User: Standard
     AP_GROUPINFO("_OPTIONS", 8, AP_OSD, options, OPTION_DECIMAL_PACK),
 
@@ -206,6 +206,13 @@ const AP_Param::GroupInfo AP_OSD::var_info[] = {
     // @Range: 0 100
     // @User: Standard
     AP_GROUPINFO("_W_RESTVOLT", 26, AP_OSD, warn_restvolt, 10.0f),
+       
+    // @Param: _W_ACRVOLT
+    // @DisplayName: Avg Cell Resting Volt warn level
+    // @Description: Set level at which ACRVOLT item will flash
+    // @Range: 0 100
+    // @User: Standard
+    AP_GROUPINFO("_W_ACRVOLT", 31, AP_OSD, warn_avgcellrestvolt, 3.6f),
 
 #endif //osd enabled
 #if OSD_PARAM_ENABLED

@@ -402,9 +402,9 @@ uint8_t GCS_MAVLINK_Tracker::sysid_my_gcs() const
     return tracker.g.sysid_my_gcs;
 }
 
-MAV_RESULT GCS_MAVLINK_Tracker::_handle_command_preflight_calibration_baro()
+MAV_RESULT GCS_MAVLINK_Tracker::_handle_command_preflight_calibration_baro(const mavlink_message_t &msg)
 {
-    MAV_RESULT ret = GCS_MAVLINK::_handle_command_preflight_calibration_baro();
+    MAV_RESULT ret = GCS_MAVLINK::_handle_command_preflight_calibration_baro(msg);
     if (ret == MAV_RESULT_ACCEPTED) {
         // zero the altitude difference on next baro update
         tracker.nav_status.need_altitude_calibration = true;
@@ -427,9 +427,6 @@ MAV_RESULT GCS_MAVLINK_Tracker::handle_command_component_arm_disarm(const mavlin
 
 MAV_RESULT GCS_MAVLINK_Tracker::handle_command_long_packet(const mavlink_command_long_t &packet)
 {
-    // do command
-    send_text(MAV_SEVERITY_INFO,"Command received: ");
-
     switch(packet.command) {
 
     case MAV_CMD_DO_SET_SERVO:
@@ -490,7 +487,7 @@ void GCS_MAVLINK_Tracker::handleMessage(const mavlink_message_t &msg)
 
         mavlink_msg_mission_item_decode(&msg, &packet);
 
-        struct Location tell_command;
+        Location tell_command;
 
         switch (packet.frame)
         {
