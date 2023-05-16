@@ -48,6 +48,7 @@ private:
     void GPS_to_DDM(float decimal, uint8_t &sign, uint16_t &dm, uint16_t &sec) const;
 
     float min_alt, max_alt;
+    uint8_t engine_data[80];
 };
 
 namespace AP {

@@ -402,6 +402,48 @@ void AP_Hott_Telem::send_packet(const uint8_t *b, uint8_t len)
     }
 }
 
+///*
+//  thread to process requests
+// */
+//void AP_Hott_Telem::loop(void)
+//{
+//    uart->begin(19200, 10, 10);
+//    uart->set_unbuffered_writes(true);
+//    uart->set_blocking_writes(true);
+
+//    while (true) {
+//        hal.scheduler->delay_microseconds(1500);
+//        uint32_t n = uart->available();
+//        if (n < 2) {
+//            // wait for 2 bytes
+//            continue;
+//        }
+//        if (n > 2) {
+//            uart->discard_input();
+//            continue;
+//        }
+
+//        const uint8_t prot_type = uart->read();
+//        const uint8_t sensor_id = uart->read();
+//        if (prot_type != PROT_BINARY) {
+//            // only do binary protocol for now
+//            continue;
+//        }
+
+//        switch (sensor_id) {
+//        case PROT_ID_EAM:
+//            send_EAM();
+//            break;
+//        case PROT_ID_GPS:
+//            send_GPS();
+//            break;
+//        case PROT_ID_VARIO:
+//            send_Vario();
+//            break;
+//        }
+//    }
+//}
+
 /*
   thread to process requests
  */
@@ -410,35 +452,31 @@ void AP_Hott_Telem::loop(void)
     uart->begin(19200, 10, 10);
     uart->set_unbuffered_writes(true);
 
+    uart->set_blocking_writes(true);
+    uint16_t tmpraw, rpmdisp;
+    char stastring[15];
+    uint32_t time_sent = AP_HAL::millis();
+
     while (true) {
         hal.scheduler->delay_microseconds(1500);
-        uint32_t n = uart->available();
-        if (n < 2) {
-            // wait for 2 bytes
-            continue;
-        }
-        if (n > 2) {
-            uart->discard_input();
-            continue;
-        }
-
-        const uint8_t prot_type = uart->read();
-        const uint8_t sensor_id = uart->read();
-        if (prot_type != PROT_BINARY) {
-            // only do binary protocol for now
-            continue;
-        }
-
-        switch (sensor_id) {
-        case PROT_ID_EAM:
-            send_EAM();
-            break;
-        case PROT_ID_GPS:
-            send_GPS();
-            break;
-        case PROT_ID_VARIO:
-            send_Vario();
-            break;
+        uint8_t val = uart->read();
+        if(val == 82)
+        {
+          for(int i=0; i<80; i++)
+          {
+            engine_data[i] = uart->read();
+          }
+          tmpraw = ((uint16_t)(engine_data[10]) << 8 | engine_data[9]);
+          rpmdisp = ((uint16_t)(engine_data[12]) << 8 | engine_data[11]);
+          for (int i=0; i<15; i++)
+          {
+            stastring[i] = engine_data[27 + i];
+          }
+          if ((AP_HAL::millis() - time_sent) > 1000)
+          {
+            time_sent = AP_HAL::millis();
+            gcs().send_text(MAV_SEVERITY_INFO, "Temp %d, RPM %d, STA %s", tmpraw, rpmdisp, stastring);
+          }
         }
     }
 }
