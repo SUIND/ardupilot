@@ -562,6 +562,16 @@ public:
 
     AP_Int32        oneshot_mask;
 
+    AP_Float        engkill_airspd_min;
+    AP_Float        engkill_airspd_max;
+    AP_Float        engkill_alt_min;
+    AP_Float        engkill_alt_max;
+    AP_Float        para_airspd_min;
+    AP_Float        para_airspd_max;
+    AP_Float        para_alt_min;
+    AP_Float        para_alt_max;
+    AP_Int8         para_channel;
+
     // just to make compilation easier when all things are compiled out...
     uint8_t unused_integer;
 };

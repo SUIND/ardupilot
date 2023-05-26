@@ -3,6 +3,50 @@
 
 void ModeFBWA::update()
 {
+    // check if parachute has to be triggered
+    if(plane.para_seq_initiated)
+    {
+      int32_t alt_curr_int;
+      uint32_t tnow = AP_HAL::millis();
+      uint32_t t_elapsed = tnow - plane.t_engkill_init;
+      uint16_t override_data = 900;
+      if (t_elapsed > 3000 && t_elapsed < 8000)
+      {
+        RC_Channels::set_override(3, override_data, tnow);
+        plane.t_para_init = tnow;
+      }
+      else
+      {
+        if (plane.current_loc.get_alt_cm(Location::AltFrame::ABOVE_HOME, alt_curr_int))
+        {
+          // check airspeed and altitude conditions
+          float alt_curr = alt_curr_int / 100.f;
+          if (plane.smoothed_airspeed < plane.g2.para_airspd_max &&
+              plane.smoothed_airspeed > plane.g2.para_airspd_min && alt_curr < plane.g2.para_alt_max &&
+              alt_curr > plane.g2.para_alt_min)
+          {
+            t_elapsed = tnow - plane.t_para_init;
+            // set para channel low
+            if (t_elapsed < 2000)
+            {
+              RC_Channels::set_override(plane.g2.para_channel, override_data, tnow);
+            }
+            else
+            {
+              // hal.console->printf("Airspeed %f, Altitude %f Parachute Deployed \n", plane.smoothed_airspeed,
+              // alt_curr);
+              plane.gcs().send_text(MAV_SEVERITY_WARNING, "Airspeed %f, Altitude %f Parachute Deployed \n",
+                                    plane.smoothed_airspeed, alt_curr);
+              plane.para_seq_initiated = false;
+            }
+          }
+          else
+          {
+            plane.t_para_init = tnow;
+          }
+        }
+      }
+    }
     // set nav_roll and nav_pitch using sticks
     plane.nav_roll_cd  = plane.channel_roll->norm_input() * plane.roll_limit_cd;
     plane.update_load_factor();
