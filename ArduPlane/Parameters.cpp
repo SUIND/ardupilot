@@ -1266,6 +1266,60 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_SUBGROUPINFO(precland, "PLND_", 35, ParametersG2, AC_PrecLand),
 #endif
 
+    // @Param: ENGKLL_ASPD_MIN
+    // @DisplayName: Engine Kill Min Airspeed
+    // @Description: Minimum Airspeed for Engine Kill
+    // @User: Advanced
+    AP_GROUPINFO("ENGKLL_ASPD_MIN", 36, ParametersG2, engkill_airspd_min, 0),
+
+    // @Param: ENGKILL_ASPD_MAX
+    // @DisplayName: Engine Kill Max Airspeed
+    // @Description: Maximum Airspeed for Engine Kill
+    // @User: Advanced
+    AP_GROUPINFO("ENGKLL_ASPD_MAX", 37, ParametersG2, engkill_airspd_max, 0),
+
+    // @Param: ENGKLL_ALT_MIN
+    // @DisplayName: Engine Kill Min Altitude
+    // @Description: Minimum Altitude for Engine Kill
+    // @User: Advanced
+    AP_GROUPINFO("ENGKLL_ALT_MIN", 38, ParametersG2, engkill_alt_min, 0),
+
+    // @Param: ENGKLL_ALT_MAX
+    // @DisplayName: Engine Kill Max Altitude
+    // @Description: Maximum Altitude for Engine Kill
+    // @User: Advanced
+    AP_GROUPINFO("ENGKLL_ALT_MAX", 39, ParametersG2, engkill_alt_max, 0),
+
+    // @Param: PARA_ASPD_MIN
+    // @DisplayName: Parachute Deployment Min Airspeed
+    // @Description: Minimum Airspeed for Parachute Deployment
+    // @User: Advanced
+    AP_GROUPINFO("PARA_ASPD_MIN", 40, ParametersG2, para_airspd_min, 0),
+
+    // @Param: PARA_ASPD_MAX
+    // @DisplayName: Parachute Deployment Max Airspeed
+    // @Description: Maximum Airspeed for Parachute Deployment
+    // @User: Advanced
+    AP_GROUPINFO("PARA_ASPD_MAX", 41, ParametersG2, para_airspd_max, 0),
+
+    // @Param: PARA_ALT_MIN
+    // @DisplayName: Parachute Deployment Min Altitude
+    // @Description: Minimum Altitude for Parachute Deployment
+    // @User: Advanced
+    AP_GROUPINFO("PARA_ALT_MIN", 42, ParametersG2, para_alt_min, 0),
+
+    // @Param: PARA_ALT_MAX
+    // @DisplayName: Parachute Deployment Max Altitude
+    // @Description: Maximum Altitude for Parachute Deployment
+    // @User: Advanced
+    AP_GROUPINFO("PARA_ALT_MAX", 43, ParametersG2, para_alt_max, 0),
+
+    // @Param: PARA_CHANNEL
+    // @DisplayName: Parachute Deployment Passthrough Channel
+    // @Description: Parachute Deployment Passthrough Channel
+    // @User: Advanced
+    AP_GROUPINFO("PARA_CHANNEL", 44, ParametersG2, para_channel, 0),
+    
     AP_GROUPEND
 };
 

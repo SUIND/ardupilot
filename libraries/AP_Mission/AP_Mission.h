@@ -498,6 +498,12 @@ public:
         return _flags.state;
     }
 
+    /// force set mission state
+    void force_set_state(mission_state state)
+    {
+        _flags.state = state;
+    }
+
     /// num_commands - returns total number of commands in the mission
     ///                 this number includes offset 0, the home location
     uint16_t num_commands() const
