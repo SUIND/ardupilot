@@ -3,19 +3,30 @@
 
 void ModeFBWA::update()
 {
+//    if(!plane.para_seq_initiated)
+//    {
+//      uint8_t para_channel = plane.g2.para_channel;
+//      uint32_t tnow = AP_HAL::millis();
+//      RC_Channels::set_override(2, 1216, tnow);
+//      RC_Channels::set_override(para_channel, 1200, tnow);
+//    }
     // check if parachute has to be triggered
     if(plane.para_seq_initiated)
     {
       int32_t alt_curr_int;
       uint32_t tnow = AP_HAL::millis();
       uint32_t t_elapsed = tnow - plane.t_engkill_init;
-      uint16_t override_data = 900;
-      if (t_elapsed > 3000 && t_elapsed < 8000)
+      uint16_t override_data = 980;
+      if (t_elapsed < 3000)
       {
-        RC_Channels::set_override(3, override_data, tnow);
+        RC_Channels::set_override(2, 1100, tnow); // channel 3 index is 2
+      }
+      else if (t_elapsed > 3000 && t_elapsed < 8000)
+      {
+        RC_Channels::set_override(2, override_data, tnow); // channel 3 index is 2
         plane.t_para_init = tnow;
       }
-      else
+      else if(t_elapsed > 8000)
       {
         if (plane.current_loc.get_alt_cm(Location::AltFrame::ABOVE_HOME, alt_curr_int))
         {
@@ -25,11 +36,12 @@ void ModeFBWA::update()
               plane.smoothed_airspeed > plane.g2.para_airspd_min && alt_curr < plane.g2.para_alt_max &&
               alt_curr > plane.g2.para_alt_min)
           {
-            t_elapsed = tnow - plane.t_para_init;
+            uint32_t t_elapsed_para = tnow - plane.t_para_init;
             // set para channel low
-            if (t_elapsed < 2000)
+            if (t_elapsed_para < 2000)
             {
-              RC_Channels::set_override(plane.g2.para_channel, override_data, tnow);
+              uint8_t para_channel = plane.g2.para_channel - 1;
+              RC_Channels::set_override(para_channel, override_data, tnow);
             }
             else
             {
@@ -38,6 +50,7 @@ void ModeFBWA::update()
               plane.gcs().send_text(MAV_SEVERITY_WARNING, "Airspeed %f, Altitude %f Parachute Deployed \n",
                                     plane.smoothed_airspeed, alt_curr);
               plane.para_seq_initiated = false;
+//               hal.console->printf("GCS override enabled %d", RC_Channels::gcs_overrides_enabled());
             }
           }
           else
