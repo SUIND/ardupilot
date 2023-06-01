@@ -681,9 +681,11 @@ public:
 
     AP_Float spray_flight_speed;
 
-    AP_Float spray_rate_max;
+    AP_Float spray_volume;
 
     AP_Float spray_takeoff_height;
+
+    AP_Float spray_width;
 };
 
 extern const AP_Param::Info        var_info[];
