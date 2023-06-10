@@ -1319,6 +1319,18 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Description: Parachute Deployment Passthrough Channel
     // @User: Advanced
     AP_GROUPINFO("PARA_CHANNEL", 44, ParametersG2, para_channel, 0),
+
+    // @Param: PARA_DEPLOY_PWM
+    // @DisplayName: Parachute Deployment PWM
+    // @Description: Parachute Deployment PWM
+    // @User: Advanced
+    AP_GROUPINFO("PARA_DEPLOY_PWM", 45, ParametersG2, para_deploy_pwm, 0),
+
+    // @Param: ENGKLL_PWM
+    // @DisplayName: Parachute Deployment PWM
+    // @Description: Parachute Deployment PWM
+    // @User: Advanced
+    AP_GROUPINFO("ENGKLL_PWM", 46, ParametersG2, engkill_pwm, 0),
     
     AP_GROUPEND
 };

@@ -639,6 +639,7 @@ private:
 
     // used for custom parachute sequence of acpl
     bool para_seq_initiated = false;
+    bool para_deployed = false;
 
     // temporary variable to store loiter location for engine kill and parachute deployment
     Location target_loc_para {};

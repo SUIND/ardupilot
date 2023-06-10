@@ -3,30 +3,18 @@
 
 void ModeFBWA::update()
 {
-//    if(!plane.para_seq_initiated)
-//    {
-//      uint8_t para_channel = plane.g2.para_channel;
-//      uint32_t tnow = AP_HAL::millis();
-//      RC_Channels::set_override(2, 1216, tnow);
-//      RC_Channels::set_override(para_channel, 1200, tnow);
-//    }
     // check if parachute has to be triggered
     if(plane.para_seq_initiated)
     {
       int32_t alt_curr_int;
       uint32_t tnow = AP_HAL::millis();
       uint32_t t_elapsed = tnow - plane.t_engkill_init;
-      uint16_t override_data = 980;
       if (t_elapsed < 3000)
       {
         RC_Channels::set_override(2, 1100, tnow); // channel 3 index is 2
-      }
-      else if (t_elapsed > 3000 && t_elapsed < 8000)
-      {
-        RC_Channels::set_override(2, override_data, tnow); // channel 3 index is 2
         plane.t_para_init = tnow;
       }
-      else if(t_elapsed > 8000)
+      else if(t_elapsed > 3000)
       {
         if (plane.current_loc.get_alt_cm(Location::AltFrame::ABOVE_HOME, alt_curr_int))
         {
@@ -38,24 +26,32 @@ void ModeFBWA::update()
           {
             uint32_t t_elapsed_para = tnow - plane.t_para_init;
             // set para channel low
-            if (t_elapsed_para < 2000)
+            if (t_elapsed_para < 3000)
             {
+              if (!plane.para_deployed)
+              {
+                plane.gcs().send_text(MAV_SEVERITY_WARNING, "Airspeed %f, Altitude %f Parachute Deployed \n",
+                                      plane.smoothed_airspeed, alt_curr);
+//              hal.console->printf("Airspeed %f, Altitude %f Parachute Deployed \n", plane.smoothed_airspeed,
+//              alt_curr);
+                plane.para_deployed = true;
+              }
               uint8_t para_channel = plane.g2.para_channel - 1;
-              RC_Channels::set_override(para_channel, override_data, tnow);
+              RC_Channels::set_override(para_channel, plane.g2.para_deploy_pwm, tnow);
+              RC_Channels::set_override(2, 1100, tnow);
             }
             else
             {
-              // hal.console->printf("Airspeed %f, Altitude %f Parachute Deployed \n", plane.smoothed_airspeed,
-              // alt_curr);
-              plane.gcs().send_text(MAV_SEVERITY_WARNING, "Airspeed %f, Altitude %f Parachute Deployed \n",
-                                    plane.smoothed_airspeed, alt_curr);
+              RC_Channels::set_override(2, plane.g2.engkill_pwm, tnow);
+              plane.gcs().send_text(MAV_SEVERITY_WARNING, "Engine Killed \n");
               plane.para_seq_initiated = false;
-//               hal.console->printf("GCS override enabled %d", RC_Channels::gcs_overrides_enabled());
+              plane.para_deployed = false;
             }
           }
           else
           {
             plane.t_para_init = tnow;
+            RC_Channels::set_override(2, 1100, tnow);
           }
         }
       }
