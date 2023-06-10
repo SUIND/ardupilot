@@ -101,12 +101,10 @@ void ModeAuto::update()
           {
             plane.set_mode(plane.mode_fbwa, ModeReason::MISSION_END);
 //            hal.console->printf("Airspeed %f, Altitude %f Engine Kill Initiated \n", plane.smoothed_airspeed, alt_curr);
-            plane.gcs().send_text(MAV_SEVERITY_WARNING, "Airspeed %f, Altitude %f Engine Kill Initiated \n", plane.smoothed_airspeed, alt_curr);
+            plane.gcs().send_text(MAV_SEVERITY_WARNING, "Airspeed %f, Altitude %f Engine Idle Initiated \n", plane.smoothed_airspeed, alt_curr);
             // Engine kill commands will be sent in FBWA since wings have to be leveled
             plane.t_engkill_init = AP_HAL::millis();
             plane.gcs().send_text(MAV_SEVERITY_WARNING, "Levelling Wings First \n");
-//            uint16_t override_data = 900;
-//            RC_Channels::set_override(3, override_data, plane.t_engkill_init);
             return;
           }
         }
