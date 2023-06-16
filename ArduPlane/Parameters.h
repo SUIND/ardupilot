@@ -600,6 +600,7 @@ public:
     AP_Int8         para_channel;
     AP_Int16        para_deploy_pwm;
     AP_Int16        engkill_pwm;
+    AP_Int16        engkill_heading_tolerance;
 
     // just to make compilation easier when all things are compiled out...
     uint8_t unused_integer;

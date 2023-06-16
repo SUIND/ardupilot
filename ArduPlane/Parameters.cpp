@@ -1327,10 +1327,16 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_GROUPINFO("PARA_DEPLOY_PWM", 45, ParametersG2, para_deploy_pwm, 0),
 
     // @Param: ENGKLL_PWM
-    // @DisplayName: Parachute Deployment PWM
-    // @Description: Parachute Deployment PWM
+    // @DisplayName: Engine Kill PWM
+    // @Description: Engine Kill PWM
     // @User: Advanced
     AP_GROUPINFO("ENGKLL_PWM", 46, ParametersG2, engkill_pwm, 0),
+
+    // @Param: ENGKLL_HDG_TOL
+    // @DisplayName: Engine Kill Heading Tolerance
+    // @Description: Engine Kill Heading Tolerance
+    // @User: Advanced
+    AP_GROUPINFO("ENGKLL_HDG_TOL", 47, ParametersG2, engkill_heading_tolerance, 5),
     
     AP_GROUPEND
 };
