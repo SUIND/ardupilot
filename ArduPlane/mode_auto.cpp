@@ -73,6 +73,8 @@ void ModeAuto::update()
         {
           plane.para_seq_initiated = true;
           plane.target_loc_para = plane.next_WP_loc;
+          // target heading
+          plane.target_heading_para = plane.prev_WP_loc.get_bearing_to(plane.next_WP_loc)/100;
 //          hal.console->printf("Lat: %d, Lon: %d \n", plane.target_loc_para.lat, plane.target_loc_para.lng);
           int32_t alt_target, engkill_alt_min, engkill_alt_max;
           engkill_alt_min = plane.g2.engkill_alt_min * 100;
@@ -92,16 +94,21 @@ void ModeAuto::update()
 
         // Check Engine Kill Condition
         int32_t alt_curr_int;
+        int32_t curr_heading = (plane.ahrs.yaw_sensor / 100) % 360;
         if (plane.current_loc.get_alt_cm(Location::AltFrame::ABOVE_HOME, alt_curr_int))
         {
           float alt_curr = alt_curr_int / 100.f;
           if (plane.smoothed_airspeed < plane.g2.engkill_airspd_max &&
-              plane.smoothed_airspeed > plane.g2.engkill_airspd_min && alt_curr < plane.g2.engkill_alt_max &&
-              alt_curr > plane.g2.engkill_alt_min)
+              plane.smoothed_airspeed > plane.g2.engkill_airspd_min &&
+              alt_curr < plane.g2.engkill_alt_max && alt_curr > plane.g2.engkill_alt_min &&
+              curr_heading > plane.target_heading_para - plane.g2.engkill_heading_tolerance &&
+              curr_heading < plane.target_heading_para + plane.g2.engkill_heading_tolerance)
           {
             plane.set_mode(plane.mode_fbwa, ModeReason::MISSION_END);
 //            hal.console->printf("Airspeed %f, Altitude %f Engine Kill Initiated \n", plane.smoothed_airspeed, alt_curr);
-            plane.gcs().send_text(MAV_SEVERITY_WARNING, "Airspeed %f, Altitude %f Engine Idle Initiated \n", plane.smoothed_airspeed, alt_curr);
+            plane.gcs().send_text(MAV_SEVERITY_WARNING,
+                                  "Airspeed %f, Altitude %f, Heading %d, Engine Idle Initiated \n",
+                                  plane.smoothed_airspeed, alt_curr, static_cast<int16_t>(curr_heading));
             // Engine kill commands will be sent in FBWA since wings have to be leveled
             plane.t_engkill_init = AP_HAL::millis();
             plane.gcs().send_text(MAV_SEVERITY_WARNING, "Levelling Wings First \n");

@@ -26,7 +26,7 @@ void ModeFBWA::update()
           {
             uint32_t t_elapsed_para = tnow - plane.t_para_init;
             // set para channel low
-            if (t_elapsed_para < 3000)
+            if (t_elapsed_para < 1000)
             {
               if (!plane.para_deployed)
               {
@@ -40,12 +40,46 @@ void ModeFBWA::update()
               RC_Channels::set_override(para_channel, plane.g2.para_deploy_pwm, tnow);
               RC_Channels::set_override(2, 1100, tnow);
             }
-            else
+            else if(t_elapsed_para >= 1000 && t_elapsed_para < 3000)
             {
               RC_Channels::set_override(2, plane.g2.engkill_pwm, tnow);
-              plane.gcs().send_text(MAV_SEVERITY_WARNING, "Engine Killed \n");
+              if(!plane.engine_killed)
+              {
+                plane.gcs().send_text(MAV_SEVERITY_WARNING, "Engine Killed \n");
+                plane.engine_killed = true;
+              }
+            }
+            else
+            {
               plane.para_seq_initiated = false;
               plane.para_deployed = false;
+              plane.engine_killed = false;
+            }
+          }
+          else if (plane.para_deployed)
+          {
+            uint32_t t_elapsed_para = tnow - plane.t_para_init;
+            // set para channel low
+            if (t_elapsed_para < 1000)
+            {
+              uint8_t para_channel = plane.g2.para_channel - 1;
+              RC_Channels::set_override(para_channel, plane.g2.para_deploy_pwm, tnow);
+              RC_Channels::set_override(2, 1100, tnow);
+            }
+            else if(t_elapsed_para >= 1000 && t_elapsed_para < 3000)
+            {
+              RC_Channels::set_override(2, plane.g2.engkill_pwm, tnow);
+              if(!plane.engine_killed)
+              {
+                plane.gcs().send_text(MAV_SEVERITY_WARNING, "Engine  Killed \n");
+                plane.engine_killed = true;
+              }
+            }
+            else
+            {
+              plane.para_seq_initiated = false;
+              plane.para_deployed = false;
+              plane.engine_killed = false;
             }
           }
           else
