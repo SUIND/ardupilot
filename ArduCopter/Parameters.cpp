@@ -1215,7 +1215,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 50
     // @Increment: 0.5
     // @User: Standard
-    AP_GROUPINFO("SPRAY_TKO_ALT", 64, ParametersG2, spray_takeoff_height, 1),
+    AP_GROUPINFO("SPRAY_TKO_ALT", 47, ParametersG2, spray_takeoff_height, 1),
 
     // @Param: SPRAY_WIDTH
     // @DisplayName: Spray Swath Width
@@ -1224,7 +1224,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 100
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("SPRAY_WIDTH", 65, ParametersG2, spray_width, 1),
+    AP_GROUPINFO("SPRAY_WIDTH", 48, ParametersG2, spray_width, 1),
 
     AP_GROUPEND
 };
