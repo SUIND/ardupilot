@@ -38,9 +38,11 @@ public:
 private:
     static AP_Hott_Telem *singleton;
 
-    AP_HAL::UARTDriver *uart;
+    AP_HAL::UARTDriver *uart_1;
+    AP_HAL::UARTDriver *uart_2;
 
-    void loop(void);
+    void loop_1(void);
+    void loop_2(void);
     void send_EAM();
     void send_GPS();
     void send_Vario();
@@ -48,7 +50,10 @@ private:
     void GPS_to_DDM(float decimal, uint8_t &sign, uint16_t &dm, uint16_t &sec) const;
 
     float min_alt, max_alt;
-    uint8_t engine_data[80];
+    uint8_t engine_data_1[80];
+    uint8_t engine_data_2[80];
+    int8_t serial_no_1 = 0;
+    int8_t serial_no_2 = 0;
 };
 
 namespace AP {
