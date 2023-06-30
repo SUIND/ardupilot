@@ -1197,7 +1197,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 1 10
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("SPRAY_FLT_SPEED", 50, ParametersG2, spray_flight_speed, 1),
+    AP_GROUPINFO("SPRAY_FLT_SPEED", 62, ParametersG2, spray_flight_speed, 1),
 
     // @Param: SPRAY_VOLUME
     // @DisplayName: Spray Volume Per Acre
@@ -1206,7 +1206,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 100
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("SPRAY_VOLUME", 51, ParametersG2, spray_volume, 1),
+    AP_GROUPINFO("SPRAY_VOLUME", 63, ParametersG2, spray_volume, 1),
 
     // @Param: SPRAY_TKO_ALT
     // @DisplayName: Takeoff altitude in spray mode
@@ -1215,7 +1215,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 50
     // @Increment: 0.5
     // @User: Standard
-    AP_GROUPINFO("SPRAY_TKO_ALT", 52, ParametersG2, spray_takeoff_height, 1),
+    AP_GROUPINFO("SPRAY_TKO_ALT", 64, ParametersG2, spray_takeoff_height, 1),
 
     // @Param: SPRAY_WIDTH
     // @DisplayName: Spray Swath Width
@@ -1224,7 +1224,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 100
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("SPRAY_WIDTH", 53, ParametersG2, spray_width, 1),
+    AP_GROUPINFO("SPRAY_WIDTH", 65, ParametersG2, spray_width, 1),
 
     AP_GROUPEND
 };
