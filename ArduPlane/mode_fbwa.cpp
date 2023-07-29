@@ -4,7 +4,7 @@
 void ModeFBWA::update()
 {
     // check if parachute has to be triggered
-    if(plane.para_seq_initiated)
+    if(plane.para_seq_initiated && plane.engine_idle_initiated)
     {
       int32_t alt_curr_int;
       uint32_t tnow = AP_HAL::millis();
@@ -54,6 +54,7 @@ void ModeFBWA::update()
               plane.para_seq_initiated = false;
               plane.para_deployed = false;
               plane.engine_killed = false;
+              plane.engine_idle_initiated = false;
             }
           }
           else if (plane.para_deployed)
@@ -80,6 +81,7 @@ void ModeFBWA::update()
               plane.para_seq_initiated = false;
               plane.para_deployed = false;
               plane.engine_killed = false;
+              plane.engine_idle_initiated = false;
             }
           }
           else

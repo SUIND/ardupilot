@@ -639,6 +639,7 @@ private:
 
     // used for custom parachute sequence of acpl
     bool para_seq_initiated = false;
+    bool engine_idle_initiated = false;
     bool para_deployed = false;
     bool engine_killed = false;
 

@@ -112,6 +112,7 @@ void ModeAuto::update()
             // Engine kill commands will be sent in FBWA since wings have to be leveled
             plane.t_engkill_init = AP_HAL::millis();
             plane.gcs().send_text(MAV_SEVERITY_WARNING, "Levelling Wings First \n");
+            plane.engine_idle_initiated = true;
             return;
           }
         }
