@@ -1160,17 +1160,25 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_GROUPINFO("TKOFF_RPM_MIN", 58, ParametersG2, takeoff_rpm_min, 0),
 #endif
 
-    // ID 62 is reserved for the SHOW_... parameters from the Skybrush fork at
-    // https://github.com/skybrush-io/ardupilot
+    // extend to a new group
+    AP_SUBGROUPEXTENSION("", 61, ParametersG2, var_info2),
 
-    // @Param: FS_COMPANION_TIMEOUT
+    AP_GROUPEND
+};
+
+/*
+  extension to g2 parameters
+ */
+const AP_Param::GroupInfo ParametersG2::var_info2[] = {
+
+       // @Param: FS_COMPANION_TIMEOUT
     // @DisplayName: Companion failsafe timeout
     // @Description: Timeout before triggering the Companion failsafe
     // @Units: s
     // @Range: 2 120
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("FS_COMP_TIMEOUT", 59, ParametersG2, fs_companion_timeout, 2),
+    AP_GROUPINFO("FS_COMP_TIMEOUT", 11, ParametersG2, fs_companion_timeout, 2),
 
     // @Param: FS_COMPANION_ACTION
     // @DisplayName: Companion failsafe action
@@ -1179,7 +1187,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 2
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("FS_COMP_ACTION", 60, ParametersG2, fs_companion_action, 1),
+    AP_GROUPINFO("FS_COMP_ACTION", 12, ParametersG2, fs_companion_action, 1),
 
     // @Param: AUTO_SPRAY_ENABLE
     // @DisplayName: Enable Automatic Spray Control
@@ -1188,7 +1196,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 1
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("AUTO_SPRAY_EN", 61, ParametersG2, auto_spray_enable, 1),
+    AP_GROUPINFO("SU_AUTO_SPRY_EN", 13, ParametersG2, auto_spray_enable, 1),
 
     // @Param: SPRAY_FLT_SPEED
     // @DisplayName: Flight Speed During Spray Mission
@@ -1197,7 +1205,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 1 10
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("SPRAY_FLT_SPEED", 62, ParametersG2, spray_flight_speed, 1),
+    AP_GROUPINFO("SU_SPRY_FLT_SPD", 14, ParametersG2, spray_flight_speed, 4),
 
     // @Param: SPRAY_VOLUME
     // @DisplayName: Spray Volume Per Acre
@@ -1206,7 +1214,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 100
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("SPRAY_VOLUME", 63, ParametersG2, spray_volume, 1),
+    AP_GROUPINFO("SU_SPRY_VOL", 15, ParametersG2, spray_volume, 10),
 
     // @Param: SPRAY_TKO_ALT
     // @DisplayName: Takeoff altitude in spray mode
@@ -1215,7 +1223,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 50
     // @Increment: 0.5
     // @User: Standard
-    AP_GROUPINFO("SPRAY_TKO_ALT", 47, ParametersG2, spray_takeoff_height, 1),
+    AP_GROUPINFO("SU_TRAVEL_ALT", 16, ParametersG2, travel_height, 10),
 
     // @Param: SPRAY_WIDTH
     // @DisplayName: Spray Swath Width
@@ -1224,7 +1232,19 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Range: 0 100
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("SPRAY_WIDTH", 48, ParametersG2, spray_width, 1),
+    AP_GROUPINFO("SU_SPRY_WIDTH", 17, ParametersG2, spray_width, 4),
+
+    // @Param: MISSION_RESUME
+    // @DisplayName: Resume or Restart Mission
+    // @Description: This is used to override resume or restart of a mission 
+    // (ex: mission adjustments in between tank replacements on sprayer)
+    // @Units: m
+    // @Range: 0 1
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("SU_MSN_RESUME", 18, ParametersG2, mission_resume, 1),
+
+    // ID 62 is reserved for the AP_SUBGROUPEXTENSION
 
     AP_GROUPEND
 };
@@ -1282,6 +1302,7 @@ ParametersG2::ParametersG2(void)
     ,command_model_pilot(PILOT_Y_RATE_DEFAULT, PILOT_Y_EXPO_DEFAULT, 0.0f)
 {
     AP_Param::setup_object_defaults(this, var_info);
+    AP_Param::setup_object_defaults(this, var_info2);
 }
 
 /*

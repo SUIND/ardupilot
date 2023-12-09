@@ -488,6 +488,7 @@ public:
 
     // var_info for holding Parameter information
     static const struct AP_Param::GroupInfo var_info[];
+    static const struct AP_Param::GroupInfo var_info2[];
 
     // altitude at which nav control can start in takeoff
     AP_Float wp_navalt_min;
@@ -683,9 +684,11 @@ public:
 
     AP_Float spray_volume;
 
-    AP_Float spray_takeoff_height;
+    AP_Float travel_height;
 
     AP_Float spray_width;
+
+    AP_Int8 mission_resume;
 };
 
 extern const AP_Param::Info        var_info[];
