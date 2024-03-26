@@ -1216,7 +1216,7 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @User: Standard
     AP_GROUPINFO("SU_SPRY_VOL", 15, ParametersG2, spray_volume, 10),
 
-    // @Param: SPRAY_TKO_ALT
+    // @Param: TRAVEL_ALT
     // @DisplayName: Takeoff altitude in spray mode
     // @Description: This will be the takeoff height in spray mode
     // @Units: m
@@ -1243,6 +1243,15 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @Increment: 1
     // @User: Standard
     AP_GROUPINFO("SU_MSN_RESUME", 18, ParametersG2, mission_resume, 1),
+
+    // @Param: SPRAY_ALT
+    // @DisplayName: Spray altitude in spray mode
+    // @Description: This will be the spray height in spray mode
+    // @Units: m
+    // @Range: 0 10
+    // @Increment: 0.5
+    // @User: Standard
+    AP_GROUPINFO("SU_SPRAY_ALT", 19, ParametersG2, spray_height, 3),
 
     // ID 62 is reserved for the AP_SUBGROUPEXTENSION
 

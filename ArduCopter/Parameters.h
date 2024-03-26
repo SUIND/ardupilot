@@ -689,6 +689,8 @@ public:
     AP_Float spray_width;
 
     AP_Int8 mission_resume;
+
+    AP_Float spray_height;
 };
 
 extern const AP_Param::Info        var_info[];
