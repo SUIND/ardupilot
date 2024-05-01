@@ -3875,6 +3875,9 @@ void GCS_MAVLINK::handle_common_message(const mavlink_message_t &msg)
     case MAVLINK_MSG_ID_CANFD_FRAME:
         handle_can_frame(msg);
         break;
+    case MAVLINK_MSG_ID_CHANGE_OPERATOR_CONTROL_ACK:
+        handle_change_operator_control_ack(msg);
+        break;
 
     case MAVLINK_MSG_ID_CAN_FILTER_MODIFY:
 #if HAL_CANMANAGER_ENABLED
@@ -4381,8 +4384,10 @@ MAV_RESULT GCS_MAVLINK::handle_command_set_ekf_source_set(const mavlink_command_
     return MAV_RESULT_DENIED;
 }
 
-MAV_RESULT GCS_MAVLINK::handle_change_operator_control_ack(const mavlink_change_operator_control_ack_t &packet)
+MAV_RESULT GCS_MAVLINK::handle_change_operator_control_ack(const mavlink_message_t &msg)
 {
+    mavlink_change_operator_control_ack_t packet;
+    mavlink_msg_change_operator_control_ack_decode(&msg, &packet);
     // this message has custom interpretation for suind
     uint8_t comp_ready = packet.gcs_system_id;
     uint8_t mission_ready = packet.control_request;
