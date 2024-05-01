@@ -4381,6 +4381,39 @@ MAV_RESULT GCS_MAVLINK::handle_command_set_ekf_source_set(const mavlink_command_
     return MAV_RESULT_DENIED;
 }
 
+MAV_RESULT GCS_MAVLINK::handle_change_operator_control_ack(const mavlink_change_operator_control_ack_t &packet)
+{
+    // this message has custom interpretation for suind
+    uint8_t comp_ready = packet.gcs_system_id;
+    uint8_t mission_ready = packet.control_request;
+    uint8_t battery_ready = packet.ack;
+    if(comp_ready == 1)
+    {
+      gcs().set_companion_ready_status(true);
+    }
+    else if(comp_ready == 0)
+    {
+      gcs().set_companion_ready_status(false); 
+    }
+    if(mission_ready == 1)
+    {
+      gcs().set_mission_ready_status(true);
+    }
+    else if(mission_ready == 0)
+    {
+      gcs().set_mission_ready_status(false); 
+    }
+    if(battery_ready == 1)
+    {
+      gcs().set_battery_ready_status(true);
+    }
+    else if(battery_ready == 0)
+    {
+      gcs().set_battery_ready_status(false); 
+    }
+    return MAV_RESULT_ACCEPTED;
+}
+
 MAV_RESULT GCS_MAVLINK::handle_command_do_gripper(const mavlink_command_long_t &packet)
 {
     AP_Gripper *gripper = AP::gripper();

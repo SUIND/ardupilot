@@ -1457,7 +1457,10 @@ bool AP_Arming::pre_arm_checks(bool report)
         &  disarm_switch_checks(report)
         &  fence_checks(report)
         &  opendroneid_checks(report)
-        &  serial_protocol_checks(report);
+        &  serial_protocol_checks(report)
+        &  companion_ready_checks(report)
+        &  mission_ready_checks(report)
+        &  battery_ready_checks(report);
 }
 
 bool AP_Arming::arm_checks(AP_Arming::Method method)
@@ -1694,6 +1697,56 @@ bool AP_Arming::disarm_switch_checks(bool display_failure) const
         chan->get_aux_switch_pos() == RC_Channel::AuxSwitchPos::HIGH) {
         check_failed(display_failure, "Disarm Switch on");
         return false;
+    }
+
+    return true;
+}
+
+// check companion computer readiness
+bool AP_Arming::companion_ready_checks(bool display_failure) const
+{
+    if ((checks_to_perform != ARMING_CHECK_ALL) && !(checks_to_perform & ARMING_CHECK_COMP)) {
+        return true;
+    }
+
+    if(gcs().custom_mode() == 4) { // only in guided mode
+        if (!gcs().get_companion_ready_status()) {
+            check_failed(ARMING_CHECK_COMP, display_failure, "Companion computer not ready");
+            return false;
+        }
+    }
+    return true;
+}
+
+// check mission readiness
+bool AP_Arming::mission_ready_checks(bool display_failure) const
+{
+    if ((checks_to_perform != ARMING_CHECK_ALL) && !(checks_to_perform & ARMING_CHECK_MISSION_READY)) {
+        return true;
+    }
+
+    if(gcs().custom_mode() == 4) { // only in guided mode
+        if (!gcs().get_mission_ready_status()) {
+            check_failed(ARMING_CHECK_MISSION_READY, display_failure, "Mission not ready");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// check battery readiness
+bool AP_Arming::battery_ready_checks(bool display_failure) const
+{
+    if ((checks_to_perform != ARMING_CHECK_ALL) && !(checks_to_perform & ARMING_CHECK_BATTERY_READY)) {
+        return true;
+    }
+
+    if(gcs().custom_mode() == 4) { // only in guided mode
+        if (!gcs().get_battery_ready_status()) {
+            check_failed(ARMING_CHECK_BATTERY_READY, display_failure, "Battery not ready");
+            return false;
+        }
     }
 
     return true;

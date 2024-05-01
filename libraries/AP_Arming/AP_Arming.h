@@ -17,26 +17,29 @@ public:
     void update();
 
     enum ArmingChecks {
-        ARMING_CHECK_ALL         = (1U << 0),
-        ARMING_CHECK_BARO        = (1U << 1),
-        ARMING_CHECK_COMPASS     = (1U << 2),
-        ARMING_CHECK_GPS         = (1U << 3),
-        ARMING_CHECK_INS         = (1U << 4),
-        ARMING_CHECK_PARAMETERS  = (1U << 5),
-        ARMING_CHECK_RC          = (1U << 6),
-        ARMING_CHECK_VOLTAGE     = (1U << 7),
-        ARMING_CHECK_BATTERY     = (1U << 8),
-        ARMING_CHECK_AIRSPEED    = (1U << 9),
-        ARMING_CHECK_LOGGING     = (1U << 10),
-        ARMING_CHECK_SWITCH      = (1U << 11),
-        ARMING_CHECK_GPS_CONFIG  = (1U << 12),
-        ARMING_CHECK_SYSTEM      = (1U << 13),
-        ARMING_CHECK_MISSION     = (1U << 14),
-        ARMING_CHECK_RANGEFINDER = (1U << 15),
-        ARMING_CHECK_CAMERA      = (1U << 16),
-        ARMING_CHECK_AUX_AUTH    = (1U << 17),
-        ARMING_CHECK_VISION      = (1U << 18),
-        ARMING_CHECK_FFT         = (1U << 19),
+        ARMING_CHECK_ALL            = (1U << 0),
+        ARMING_CHECK_BARO           = (1U << 1),
+        ARMING_CHECK_COMPASS        = (1U << 2),
+        ARMING_CHECK_GPS            = (1U << 3),
+        ARMING_CHECK_INS            = (1U << 4),
+        ARMING_CHECK_PARAMETERS     = (1U << 5),
+        ARMING_CHECK_RC             = (1U << 6),
+        ARMING_CHECK_VOLTAGE        = (1U << 7),
+        ARMING_CHECK_BATTERY        = (1U << 8),
+        ARMING_CHECK_AIRSPEED       = (1U << 9),
+        ARMING_CHECK_LOGGING        = (1U << 10),
+        ARMING_CHECK_SWITCH         = (1U << 11),
+        ARMING_CHECK_GPS_CONFIG     = (1U << 12),
+        ARMING_CHECK_SYSTEM         = (1U << 13),
+        ARMING_CHECK_MISSION        = (1U << 14),
+        ARMING_CHECK_RANGEFINDER    = (1U << 15),
+        ARMING_CHECK_CAMERA         = (1U << 16),
+        ARMING_CHECK_AUX_AUTH       = (1U << 17),
+        ARMING_CHECK_VISION         = (1U << 18),
+        ARMING_CHECK_FFT            = (1U << 19),
+        ARMING_CHECK_COMP           = (1U << 20), // suind custom check
+        ARMING_CHECK_MISSION_READY  = (1U << 21), // suind custom check
+        ARMING_CHECK_BATTERY_READY  = (1U << 22), // suind custom check
     };
 
     enum class Method {
@@ -218,6 +221,11 @@ protected:
 
     bool visodom_checks(bool report) const;
     bool disarm_switch_checks(bool report) const;
+
+    // suind custom checks
+    bool companion_ready_checks(bool report) const;
+    bool mission_ready_checks(bool report) const;
+    bool battery_ready_checks(bool report) const;
 
     // mandatory checks that cannot be bypassed.  This function will only be called if ARMING_CHECK is zero or arming forced
     virtual bool mandatory_checks(bool report);

@@ -581,6 +581,7 @@ protected:
     MAV_RESULT handle_command_do_fence_enable(const mavlink_command_long_t &packet);
     MAV_RESULT handle_command_debug_trap(const mavlink_command_long_t &packet);
     MAV_RESULT handle_command_set_ekf_source_set(const mavlink_command_long_t &packet);
+    MAV_RESULT handle_change_operator_control_ack(const mavlink_change_operator_control_ack_t &packet);
 
     /*
       handle MAV_CMD_CAN_FORWARD and CAN_FRAME messages for CAN over MAVLink
@@ -1151,6 +1152,14 @@ public:
     void enable_high_latency_connections(bool enabled);
 #endif // HAL_HIGH_LATENCY2_ENABLED
 
+    bool get_companion_ready_status() {return companion_ready;}
+    bool get_mission_ready_status() {return mission_ready;}
+    bool get_battery_ready_status() {return battery_ready;}
+
+    void set_companion_ready_status(bool val) {companion_ready = val;}
+    void set_mission_ready_status(bool val) {mission_ready = val;}
+    void set_battery_ready_status(bool val) {battery_ready = val;}
+
 protected:
 
     virtual uint8_t sysid_this_mav() const = 0;
@@ -1228,6 +1237,10 @@ private:
     // GCS::update_send is called so we don't starve later links of
     // time in which they are permitted to send messages.
     uint8_t first_backend_to_send;
+
+    bool companion_ready = false;
+    bool mission_ready = false;
+    bool battery_ready = false;
 };
 
 GCS &gcs();
