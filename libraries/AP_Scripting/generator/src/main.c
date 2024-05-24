@@ -352,6 +352,7 @@ struct method {
   struct type return_type;
   struct argument * arguments;
   uint32_t flags; // filled out with TYPE_FLAGS
+  char *dependency;
 };
 
 enum alias_type {
@@ -366,7 +367,9 @@ struct method_alias {
   char *alias;
   int line;
   int num_args;
+  int num_ret;
   enum alias_type type;
+  char *dependency;
 };
 
 struct userdata_field {
@@ -796,6 +799,15 @@ void handle_method(struct userdata *node) {
       }
       string_copy(&(method->deprecate), deprecate);
       return;
+
+    } else if (strcmp(token, keyword_depends) == 0) {
+      char *dependency = strtok(NULL, "");
+      if (dependency == NULL) {
+        error(ERROR_USERDATA, "Expected dependency string for %s %s on line", parent_name, name, state.line_num);
+      }
+      string_copy(&(method->dependency), dependency);
+      return;
+
     }
     error(ERROR_USERDATA, "Method %s already exists for %s (declared on %d)", name, parent_name, method->line);
   }
@@ -876,7 +888,27 @@ void handle_manual(struct userdata *node, enum alias_type type) {
       error(ERROR_SINGLETON, "Expected number of args for manual method %s %s", node->name, name);
     }
     alias->num_args = atoi(num_args);
+
+    char *num_ret = next_token();
+    if (num_ret == NULL) {
+      error(ERROR_SINGLETON, "Expected number of returns for manual method %s %s", node->name, name);
+    }
+    alias->num_ret = atoi(num_ret);
   }
+
+  char *depends_keyword = next_token();
+  if (depends_keyword != NULL) {
+    if (strcmp(depends_keyword, keyword_depends) != 0) {
+      error(ERROR_SINGLETON, "Expected depends keyword for manual method %s %s, got: %s", node->name, name, depends_keyword);
+    } else {
+      char *dependency = strtok(NULL, "");
+      if (dependency == NULL) {
+        error(ERROR_USERDATA, "Expected dependency string for global %s on line", name, state.line_num);
+      }
+      string_copy(&(alias->dependency), dependency);
+    }
+  }
+
   alias->next = node->method_aliases;
   node->method_aliases = alias;
 }
@@ -1227,6 +1259,7 @@ void emit_userdata_allocators(void) {
   struct userdata * node = parsed_userdata;
   while (node) {
     start_dependency(source, node->dependency);
+    // New method used internally
     fprintf(source, "int new_%s(lua_State *L) {\n", node->sanatized_name);
     fprintf(source, "    luaL_checkstack(L, 2, \"Out of stack\");\n"); // ensure we have sufficent stack to push the return
     fprintf(source, "    void *ud = lua_newuserdata(L, sizeof(%s));\n", node->name);
@@ -1235,6 +1268,22 @@ void emit_userdata_allocators(void) {
     fprintf(source, "    lua_setmetatable(L, -2);\n");
     fprintf(source, "    return 1;\n");
     fprintf(source, "}\n");
+
+    // New method used externally, includes argcheck, overridden by custom creation function if provided
+    if (node->creation == NULL) {
+      fprintf(source, "\n");
+      fprintf(source, "int lua_new_%s(lua_State *L) {\n", node->sanatized_name);
+
+      // emit one time warning if augments are parsed
+      fprintf(source, "    static bool warned = false;\n");
+      fprintf(source, "    if (!warned && userdata_zero_arg_check(L)) {\n");
+      fprintf(source, "        warned = true;\n");
+      fprintf(source, "    }\n");
+
+      fprintf(source, "    return new_%s(L);\n", node->sanatized_name);
+      fprintf(source, "}\n");
+    }
+
     end_dependency(source, node->dependency);
     fprintf(source, "\n");
     node = node->next;
@@ -1312,6 +1361,9 @@ void emit_userdata_declarations(void) {
   while (node) {
     start_dependency(header, node->dependency);
     fprintf(header, "int new_%s(lua_State *L);\n", node->sanatized_name);
+    if (node->creation == NULL) {
+      fprintf(header, "int lua_new_%s(lua_State *L);\n", node->sanatized_name);
+    }
     fprintf(header, "%s * check_%s(lua_State *L, int arg);\n", node->name, node->sanatized_name);
     end_dependency(header, node->dependency);
     node = node->next;
@@ -1341,41 +1393,41 @@ void emit_checker(const struct type t, int arg_number, int skipped, const char *
     arg_number = arg_number + NULLABLE_ARG_COUNT_BASE;
     switch (t.type) {
       case TYPE_BOOLEAN:
-        fprintf(source, "%sbool data_%d;\n", indentation, arg_number);
+        fprintf(source, "%sbool data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_FLOAT:
-        fprintf(source, "%sfloat data_%d;\n", indentation, arg_number);
+        fprintf(source, "%sfloat data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_INT8_T:
-        fprintf(source, "%sint8_t data_%d;\n", indentation, arg_number);
+        fprintf(source, "%sint8_t data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_INT16_T:
-        fprintf(source, "%sint16_t data_%d;\n", indentation, arg_number);
+        fprintf(source, "%sint16_t data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_INT32_T:
-        fprintf(source, "%sint32_t data_%d;\n", indentation, arg_number);
+        fprintf(source, "%sint32_t data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_UINT8_T:
-        fprintf(source, "%suint8_t data_%d;\n", indentation, arg_number);
+        fprintf(source, "%suint8_t data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_UINT16_T:
-        fprintf(source, "%suint16_t data_%d;\n", indentation, arg_number);
+        fprintf(source, "%suint16_t data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_UINT32_T:
-        fprintf(source, "%suint32_t data_%d;\n", indentation, arg_number);
+        fprintf(source, "%suint32_t data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_AP_OBJECT:
       case TYPE_NONE:
       case TYPE_LITERAL:
         return; // nothing to do here, this should potentially be checked outside of this, but it makes an easier implementation to accept it
       case TYPE_STRING:
-        fprintf(source, "%schar * data_%d = {};\n", indentation, arg_number);
+        fprintf(source, "%schar * data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_ENUM:
-        fprintf(source, "%suint32_t data_%d;\n", indentation, arg_number);
+        fprintf(source, "%suint32_t data_%d {};\n", indentation, arg_number);
         break;
       case TYPE_USERDATA:
-        fprintf(source, "%s%s data_%d = {};\n", indentation, t.data.ud.name, arg_number);
+        fprintf(source, "%s%s data_%d {};\n", indentation, t.data.ud.name, arg_number);
         break;
     }
   } else {
@@ -1709,8 +1761,8 @@ void emit_userdata_fields() {
         emit_userdata_field(node, field);
         field = field->next;
       }
+      end_dependency(source, node->dependency);
     }
-    end_dependency(source, node->dependency);
     node = node->next;
   }
 }
@@ -1801,6 +1853,7 @@ void emit_userdata_method(const struct userdata *data, const struct method *meth
   int arg_count = 1;
 
   start_dependency(source, data->dependency);
+  start_dependency(source, method->dependency);
 
   // bind ud early if it's a singleton, so that we can use it in the range checks
   fprintf(source, "static int %s_%s(lua_State *L) {\n", data->sanatized_name, method->sanatized_name);
@@ -1872,7 +1925,9 @@ void emit_userdata_method(const struct userdata *data, const struct method *meth
   } else if (data->flags & UD_FLAG_SEMAPHORE_POINTER) {
     fprintf(source, "    %s%sget_semaphore()->take_blocking();\n", ud_name, ud_access);
   } else if (data->flags & UD_FLAG_SCHEDULER_SEMAPHORE) {
+    fprintf(source, "#if AP_SCHEDULER_ENABLED\n");
     fprintf(source, "    AP::scheduler().get_semaphore().take_blocking();\n");
+    fprintf(source, "#endif\n");
   }
 
   int static_cast = TRUE;
@@ -2004,7 +2059,9 @@ void emit_userdata_method(const struct userdata *data, const struct method *meth
   } else if (data->flags & UD_FLAG_SEMAPHORE_POINTER) {
     fprintf(source, "    %s%sget_semaphore()->give();\n", ud_name, ud_access);
   } else if (data->flags & UD_FLAG_SCHEDULER_SEMAPHORE) {
+    fprintf(source, "#if AP_SCHEDULER_ENABLED\n");
     fprintf(source, "    AP::scheduler().get_semaphore().give();\n");
+    fprintf(source, "#endif\n");
   }
 
   // we need to emit out refernce arguments, iterate the args again, creating and copying objects, while keeping a new count
@@ -2071,6 +2128,7 @@ void emit_userdata_method(const struct userdata *data, const struct method *meth
   }
 
   fprintf(source, "}\n");
+  end_dependency(source, method->dependency);
   end_dependency(source, data->dependency);
   fprintf(source, "\n");
 
@@ -2099,6 +2157,8 @@ void emit_operators(struct userdata *data) {
   trace(TRACE_USERDATA, "Emitting operators for %s", data->name);
 
   assert(data->ud_type == UD_USERDATA);
+
+  start_dependency(source, data->dependency);
 
   for (uint32_t i = 1; i < OP_LAST; i = (i << 1)) {
     const char * op_name = get_name_for_operation((data->operations) & i);
@@ -2139,6 +2199,8 @@ void emit_operators(struct userdata *data) {
     fprintf(source, "}\n\n");
 
   }
+
+  end_dependency(source, data->dependency);
 }
 
 void emit_methods(struct userdata *node) {
@@ -2178,7 +2240,9 @@ void emit_index(struct userdata *head) {
 
     struct method *method = node->methods;
     while (method) {
+      start_dependency(source, method->dependency);
       fprintf(source, "    {\"%s\", %s_%s},\n", method->rename ? method->rename :  method->name, node->sanatized_name, method->name);
+      end_dependency(source, method->dependency);
       method = method->next;
     }
 
@@ -2364,7 +2428,7 @@ void emit_sandbox(void) {
         // expose custom creation function to user (not used internally)
         fprintf(source, "    {\"%s\", %s},\n", data->rename ? data->rename :  data->name, data->creation);
       } else {
-        fprintf(source, "    {\"%s\", new_%s},\n", data->rename ? data->rename :  data->name, data->sanatized_name);
+        fprintf(source, "    {\"%s\", lua_new_%s},\n", data->rename ? data->rename :  data->name, data->sanatized_name);
       }
       end_dependency(source, data->dependency);
     }
@@ -2376,7 +2440,9 @@ void emit_sandbox(void) {
       if (manual_aliases->type != ALIAS_TYPE_MANUAL) {
         error(ERROR_GLOBALS, "Globals only support manual methods");
       }
+      start_dependency(source, manual_aliases->dependency);
       fprintf(source, "    {\"%s\", %s},\n", manual_aliases->alias, manual_aliases->name);
+      end_dependency(source, manual_aliases->dependency);
       manual_aliases = manual_aliases->next;
     }
   }
@@ -2412,6 +2478,40 @@ void emit_argcheck_helper(void) {
   fprintf(source, "        return luaL_argerror(L, args, \"too few arguments\");\n");
   fprintf(source, "    }\n");
   fprintf(source, "    return 0;\n");
+  fprintf(source, "}\n\n");
+
+  // emit warning if augments are parsed
+  fprintf(source, "bool userdata_zero_arg_check(lua_State *L) {\n");
+  fprintf(source, "    if (lua_gettop(L) == 0) {\n");
+  fprintf(source, "        return false;\n");
+  fprintf(source, "    }\n");
+
+  // Try and get debug info
+  fprintf(source, "    lua_Debug ar;\n");
+
+  // Line number and file name
+  fprintf(source, "    if (lua_getstack(L, 1, &ar)) {\n");
+  fprintf(source, "        lua_getinfo(L, \"Sl\", &ar);\n");
+  fprintf(source, "        if (ar.currentline != 0) {\n");
+
+  // Function name
+  fprintf(source, "            if (lua_getstack(L, 0, &ar)) {\n");
+  fprintf(source, "                lua_getinfo(L, \"n\", &ar);\n");
+  fprintf(source, "                if (ar.name != NULL) {\n");
+
+  // Print warning with debug info
+  fprintf(source, "                    lua_scripts::set_and_print_new_error_message(MAV_SEVERITY_WARNING, \"%%s:%%d Warning: %%s does not take arguments, will be fatal in future\", ar.short_src, ar.currentline, ar.name);\n");
+  fprintf(source, "                    return true;\n");
+
+  fprintf(source, "                }\n");
+  fprintf(source, "            }\n");
+  fprintf(source, "        }\n");
+  fprintf(source, "    }\n");
+
+  // Print generic warning
+  fprintf(source, "    lua_scripts::set_and_print_new_error_message(MAV_SEVERITY_WARNING, \"Warning: userdate creation does not take arguments, will be fatal in future\");\n");
+
+  fprintf(source, "    return true;\n");
   fprintf(source, "}\n\n");
 
   fprintf(source, "lua_Integer get_integer(lua_State *L, int arg_num, lua_Integer min_val, lua_Integer max_val) {\n");
@@ -2515,6 +2615,22 @@ void emit_docs_type(struct type type, const char *prefix, const char *suffix) {
   }
 }
 
+void emit_docs_param_type(struct type type, const char *prefix, const char *suffix) {
+  if (type.type == TYPE_UINT32_T) {
+    // we will try and convert int and numbers to uint32
+    fprintf(docs, "%s uint32_t_ud|integer|number%s", prefix, suffix);
+    return;
+  }
+
+  emit_docs_type(type, prefix, suffix);
+}
+
+void emit_docs_return_type(struct type type, int nullable) {
+  // AP_Objects can be nil
+  nullable |= (type.type == TYPE_AP_OBJECT);
+  emit_docs_type(type, "---@return", (nullable == 0) ? "\n" : "|nil\n");
+}
+
 void emit_docs_method(const char *name, const char *method_name, struct method *method) {
 
   fprintf(docs, "-- desc\n");
@@ -2530,7 +2646,7 @@ void emit_docs_method(const char *name, const char *method_name, struct method *
     if ((arg->type.type != TYPE_LITERAL) && (arg->type.flags & (TYPE_FLAGS_NULLABLE | TYPE_FLAGS_REFERNCE)) == 0) {
       char *param_name = (char *)allocate(20);
       sprintf(param_name, "---@param param%i", count);
-      emit_docs_type(arg->type, param_name, "\n");
+      emit_docs_param_type(arg->type, param_name, "\n");
       free(param_name);
       count++;
     }
@@ -2539,18 +2655,14 @@ void emit_docs_method(const char *name, const char *method_name, struct method *
 
   // return type
   if ((method->flags & TYPE_FLAGS_NULLABLE) == 0) {
-    emit_docs_type(method->return_type, "---@return", "\n");
+    emit_docs_return_type(method->return_type, FALSE);
   }
 
   arg = method->arguments;
   // nulable and refences returns
   while (arg != NULL) {
     if ((arg->type.type != TYPE_LITERAL) && (arg->type.flags & (TYPE_FLAGS_NULLABLE | TYPE_FLAGS_REFERNCE))) {
-      if (arg->type.flags & TYPE_FLAGS_NULLABLE) {
-        emit_docs_type(arg->type, "---@return", "|nil\n");
-      } else {
-        emit_docs_type(arg->type, "---@return", "\n");
-      }
+      emit_docs_return_type(arg->type, arg->type.flags & TYPE_FLAGS_NULLABLE);
     }
     arg = arg->next;
   }
@@ -2577,7 +2689,9 @@ void emit_docs(struct userdata *node, int is_userdata, int emit_creation) {
 
 
     fprintf(docs, "-- desc\n");
-    fprintf(docs, "---@class %s\n", name);
+    if (is_userdata) {
+      fprintf(docs, "---@class %s\n", name);
+    }
 
     // enums
     if (node->enums != NULL) {
@@ -2594,6 +2708,12 @@ void emit_docs(struct userdata *node, int is_userdata, int emit_creation) {
 
       if (emit_creation) {
         // creation function
+        if (node->creation != NULL) {
+          for (int i = 0; i < node->creation_args; ++i) {
+            fprintf(docs, "---@param param%i UNKNOWN\n", i+1);
+          }
+        }
+
         fprintf(docs, "---@return %s\n", name);
         fprintf(docs, "function %s(", node->rename ? node->rename : node->sanatized_name);
         if (node->creation == NULL) {
@@ -2628,7 +2748,7 @@ void emit_docs(struct userdata *node, int is_userdata, int emit_creation) {
             }
             if (field->access_flags & ACCESS_FLAG_WRITE) {
               fprintf(docs, "-- set field\n");
-              emit_docs_type(field->type, "---@param value", "\n");
+              emit_docs_param_type(field->type, "---@param value", "\n");
               fprintf(docs, "function %s:%s(value) end\n\n", name, field->rename ? field->rename : field->name);
             }
           } else {
@@ -2642,7 +2762,7 @@ void emit_docs(struct userdata *node, int is_userdata, int emit_creation) {
             if (field->access_flags & ACCESS_FLAG_WRITE) {
               fprintf(docs, "-- set array field\n");
               fprintf(docs, "---@param index integer\n");
-              emit_docs_type(field->type, "---@param value", "\n");
+              emit_docs_param_type(field->type, "---@param value", "\n");
               fprintf(docs, "function %s:%s(index, value) end\n\n", name, field->rename ? field->rename : field->name);
             }
           }
@@ -2675,7 +2795,17 @@ void emit_docs(struct userdata *node, int is_userdata, int emit_creation) {
 
       } else if (alias->type == ALIAS_TYPE_MANUAL) {
           // Cant do a great job, don't know types or return
-          fprintf(docs, "-- desc\nfunction %s:%s(", name, alias->alias);
+          fprintf(docs, "-- desc\n");
+
+          for (int i = 0; i < alias->num_args; ++i) {
+            fprintf(docs, "---@param param%i UNKNOWN\n", i+1);
+          }
+
+          for (int i = 0; i < alias->num_ret; ++i) {
+            fprintf(docs, "---@return UNKNOWN\n");
+          }
+
+          fprintf(docs, "function %s:%s(", name, alias->alias);
           for (int i = 0; i < alias->num_args; ++i) {
             fprintf(docs, "param%i", i+1);
             if (i < alias->num_args-1) {
@@ -2704,6 +2834,11 @@ void emit_index_helpers(void) {
   fprintf(source, "    return false;\n");
   fprintf(source, "}\n\n");
 
+  // If enough stuff is defined out we can end up with no enums.
+  // Rather than work out which defines we would need, just ignore the unused function error.
+  fprintf(source, "#pragma GCC diagnostic push\n");
+  fprintf(source, "#pragma GCC diagnostic ignored \"-Wunused-function\"\n");
+
   fprintf(source, "static bool load_enum(lua_State *L, const userdata_enum *list, const uint8_t length, const char* name) {\n");
   fprintf(source, "    for (uint8_t i = 0; i < length; i++) {\n");
   fprintf(source, "        if (strcmp(name,list[i].name) == 0) {\n");
@@ -2712,7 +2847,10 @@ void emit_index_helpers(void) {
   fprintf(source, "        }\n");
   fprintf(source, "    }\n");
   fprintf(source, "    return false;\n");
-  fprintf(source, "}\n\n");
+  fprintf(source, "}\n");
+
+  fprintf(source, "#pragma GCC diagnostic pop\n\n");
+
 }
 
 void emit_structs(void) {
@@ -2810,7 +2948,11 @@ int main(int argc, char **argv) {
   }
 
   fprintf(source, "// auto generated bindings, don't manually edit.  See README.md for details.\n");
-  
+
+  fprintf(source, "#include <AP_Scripting/AP_Scripting_config.h>\n\n");
+
+  fprintf(source, "#if AP_SCRIPTING_ENABLED\n\n");
+
   trace(TRACE_GENERAL, "Sanity checking parsed input");
 
   sanity_check_userdata();
@@ -2822,6 +2964,11 @@ int main(int argc, char **argv) {
 
   // for set_and_print_new_error_message deprecate warning
   fprintf(source, "#include <AP_Scripting/lua_scripts.h>\n");
+  fprintf(source, "\n");
+  // the generated source uses the Scehduler singleton:
+  fprintf(source, "#include <AP_Scheduler/AP_Scheduler.h>\n");
+
+  fprintf(source, "extern const AP_HAL::HAL& hal;\n");
 
   trace(TRACE_GENERAL, "Starting emission");
 
@@ -2864,6 +3011,8 @@ int main(int argc, char **argv) {
 
   emit_sandbox();
 
+  fprintf(source, "#endif  // AP_SCRIPTING_ENABLED\n");
+
   fclose(source);
   source = NULL;
 
@@ -2875,6 +3024,8 @@ int main(int argc, char **argv) {
   free(file_name);
   fprintf(header, "#pragma once\n");
   fprintf(header, "// auto generated bindings, don't manually edit.  See README.md for details.\n");
+  fprintf(header, "#include <AP_Scripting/AP_Scripting_config.h>\n\n");
+  fprintf(header, "#if AP_SCRIPTING_ENABLED\n\n");
   fprintf(header, "#include <AP_Vehicle/AP_Vehicle_Type.h> // needed for APM_BUILD_TYPE #if\n");
   emit_headers(header);
   fprintf(header, "#include <AP_Scripting/lua/src/lua.hpp>\n");
@@ -2886,6 +3037,7 @@ int main(int argc, char **argv) {
   fprintf(header, "void load_generated_bindings(lua_State *L);\n");
   fprintf(header, "void load_generated_sandbox(lua_State *L);\n");
   fprintf(header, "int binding_argcheck(lua_State *L, int expected_arg_count);\n");
+  fprintf(header, "bool userdata_zero_arg_check(lua_State *L);\n");
   fprintf(header, "lua_Integer get_integer(lua_State *L, int arg_num, lua_Integer min_val, lua_Integer max_val);\n");
   fprintf(header, "int8_t get_int8_t(lua_State *L, int arg_num);\n");
   fprintf(header, "int16_t get_int16_t(lua_State *L, int arg_num);\n");
@@ -2904,6 +3056,8 @@ int main(int argc, char **argv) {
     }
     node = node->next;
   }
+
+  fprintf(header, "#endif  // AP_SCRIPTING_ENABLED\n");
 
   fclose(header);
   header = NULL;
@@ -2939,7 +3093,17 @@ int main(int argc, char **argv) {
     while(alias) {
       if (alias->type == ALIAS_TYPE_MANUAL) {
           // Cant do a great job, don't know types or return
-          fprintf(docs, "-- desc\nfunction %s(", alias->alias);
+          fprintf(docs, "-- desc\n");
+
+          for (int i = 0; i < alias->num_args; ++i) {
+            fprintf(docs, "---@param param%i UNKNOWN\n", i+1);
+          }
+
+          for (int i = 0; i < alias->num_ret; ++i) {
+            fprintf(docs, "---@return UNKNOWN\n");
+          }
+
+          fprintf(docs, "function %s(", alias->alias);
           for (int i = 0; i < alias->num_args; ++i) {
             fprintf(docs, "param%i", i+1);
             if (i < alias->num_args-1) {

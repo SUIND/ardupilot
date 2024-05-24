@@ -28,6 +28,10 @@
 #include "AP_Proximity_AirSimSITL.h"
 #include "AP_Proximity_Cygbot_D1.h"
 #include "AP_Proximity_DroneCAN.h"
+#include "AP_Proximity_Scripting.h"
+#include "AP_Proximity_LD06.h"
+#include "AP_Proximity_MR72_CAN.h"
+
 
 #include <AP_Logger/AP_Logger.h>
 
@@ -79,26 +83,44 @@ const AP_Param::GroupInfo AP_Proximity::var_info[] = {
     // @Path: AP_Proximity_Params.cpp
     AP_SUBGROUPINFO(params[0], "1", 21, AP_Proximity, AP_Proximity_Params),
 
+    // @Group: 1_
+    // @Path: AP_Proximity_MR72_CAN.cpp
+    AP_SUBGROUPVARPTR(drivers[0], "1_",  26, AP_Proximity, backend_var_info[0]),
+
 #if PROXIMITY_MAX_INSTANCES > 1
     // @Group: 2
     // @Path: AP_Proximity_Params.cpp
     AP_SUBGROUPINFO(params[1], "2", 22, AP_Proximity, AP_Proximity_Params),
+
+    // @Group: 2_
+    // @Path: AP_Proximity_MR72_CAN.cpp
+    AP_SUBGROUPVARPTR(drivers[1], "2_",  27, AP_Proximity, backend_var_info[1]),
 #endif
 
 #if PROXIMITY_MAX_INSTANCES > 2
     // @Group: 3
     // @Path: AP_Proximity_Params.cpp
     AP_SUBGROUPINFO(params[2], "3", 23, AP_Proximity, AP_Proximity_Params),
+
+    // @Group: 3_
+    // @Path: AP_Proximity_MR72_CAN.cpp
+    AP_SUBGROUPVARPTR(drivers[2], "3_",  28, AP_Proximity, backend_var_info[2]),
 #endif
 
 #if PROXIMITY_MAX_INSTANCES > 3
     // @Group: 4
     // @Path: AP_Proximity_Params.cpp
     AP_SUBGROUPINFO(params[3], "4", 24, AP_Proximity, AP_Proximity_Params),
+
+    // @Group: 4_
+    // @Path: AP_Proximity_MR72_CAN.cpp
+    AP_SUBGROUPVARPTR(drivers[3], "4_",  29, AP_Proximity, backend_var_info[3]),
 #endif
 
     AP_GROUPEND
 };
+
+const AP_Param::GroupInfo *AP_Proximity::backend_var_info[PROXIMITY_MAX_INSTANCES];
 
 AP_Proximity::AP_Proximity()
 {
@@ -198,6 +220,18 @@ void AP_Proximity::init()
             num_instances = instance+1;
         break;
 #endif
+#if AP_PROXIMITY_SCRIPTING_ENABLED
+        case Type::Scripting:
+            state[instance].instance = instance;
+            drivers[instance] = new AP_Proximity_Scripting(*this, state[instance], params[instance]);
+        break;
+#endif
+#if AP_PROXIMITY_MR72_ENABLED
+        case Type::MR72:
+            state[instance].instance = instance;
+            drivers[instance] = new AP_Proximity_MR72_CAN(*this, state[instance], params[instance]);
+            break;
+# endif
 #if AP_PROXIMITY_SITL_ENABLED
         case Type::SITL:
             state[instance].instance = instance;
@@ -210,6 +244,15 @@ void AP_Proximity::init()
             drivers[instance] = new AP_Proximity_AirSimSITL(*this, state[instance], params[instance]);
             break;
 #endif
+#if AP_PROXIMITY_LD06_ENABLED
+        case Type::LD06:
+            if (AP_Proximity_LD06::detect(serial_instance)) {
+                state[instance].instance = instance;
+                drivers[instance] = new AP_Proximity_LD06(*this, state[instance], params[instance], serial_instance);
+                serial_instance++;
+            }
+            break;
+#endif
         }
 
         if (drivers[instance] != nullptr) {
@@ -220,6 +263,12 @@ void AP_Proximity::init()
 
         // initialise status
         state[instance].status = Status::NotConnected;
+
+        // if the backend has some local parameters then make those available in the tree
+        if (drivers[instance] && state[instance].var_info) {
+            backend_var_info[instance] = state[instance].var_info;
+            AP_Param::load_object_from_eeprom(drivers[instance], backend_var_info[instance]);
+        }
     }
 }
 
@@ -259,17 +308,28 @@ AP_Proximity::Status AP_Proximity::get_instance_status(uint8_t instance) const
     return state[instance].status;
 }
 
+// Returns status of first good sensor. If no good sensor found, returns status of last instance sensor
 AP_Proximity::Status AP_Proximity::get_status() const
 {
+    Status sensors_status = Status::NotConnected;
     for (uint8_t i=0; i<num_instances; i++) {
-        const Status sensors_status = get_instance_status(i);
-        if (sensors_status != Status::Good) {
-            // return first bad status
+        sensors_status = get_instance_status(i);
+        if (sensors_status == Status::Good) {
+            // return first good status
             return sensors_status;
         }
     }
-    // All valid sensors seem to be working
-    return Status::Good;
+    // no good sensor found
+    return sensors_status;
+}
+
+// return proximity backend for Lua scripting
+AP_Proximity_Backend *AP_Proximity::get_backend(uint8_t id) const
+{
+    if (!valid_instance(id)) {
+        return nullptr;
+    }
+    return drivers[id];
 }
 
 // prearm checks
@@ -401,7 +461,13 @@ bool AP_Proximity::sensor_enabled() const
 
 bool AP_Proximity::sensor_failed() const
 {
-    return get_status() != Status::Good;
+    for (uint8_t i=0; i<num_instances; i++) {
+        if (get_instance_status(i) != Status::Good) {
+            // return first bad status
+            return true;
+        }
+    }
+    return false;
 }
 
 // get distance in meters upwards, returns true on success

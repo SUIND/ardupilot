@@ -52,7 +52,7 @@ def _vehicle_index(vehicle):
     return _vehicle_indexes[vehicle]
 
 # note that AP_NavEKF3_core.h is needed for AP_NavEKF3_feature.h
-_vehicle_macros = ['SKETCHNAME', 'SKETCH', 'APM_BUILD_DIRECTORY',
+_vehicle_macros = ['APM_BUILD_DIRECTORY', 'AP_BUILD_TARGET_NAME',
                    'APM_BUILD_TYPE', 'APM_BUILD_COPTER_OR_HELI',
                    'AP_NavEKF3_core.h', 'lua_generated_bindings.h']
 _macros_re = re.compile(r'\b(%s)\b' % '|'.join(_vehicle_macros))
@@ -206,6 +206,8 @@ class ap_library_check_headers(Task.Task):
 
         # force dependency scan, if necessary
         self.compiled_task.signature()
+        if not self.compiled_task.uid() in self.generator.bld.node_deps:
+            return r, []
         for n in self.generator.bld.node_deps[self.compiled_task.uid()]:
             # using common Node methods doesn't work here
             p = n.abspath()
@@ -270,11 +272,15 @@ def double_precision_check(tasks):
                     double_tasks.append([library, s])
 
             src = str(t.inputs[0]).split('/')[-2:]
-            if src in double_tasks:
-                single_precision_option='-fsingle-precision-constant'
+            double_library = t.env.DOUBLE_PRECISION_LIBRARIES.get(src[0],False)
+
+            if double_library or src in double_tasks:
                 t.env.CXXFLAGS = t.env.CXXFLAGS[:]
-                if single_precision_option in t.env.CXXFLAGS:
-                    t.env.CXXFLAGS.remove(single_precision_option)
+                for opt in ['-fsingle-precision-constant', '-cl-single-precision-constant']:
+                    try:
+                        t.env.CXXFLAGS.remove(opt)
+                    except ValueError:
+                        pass
                 t.env.CXXFLAGS.append("-DALLOW_DOUBLE_MATH_FUNCTIONS")
 
 
@@ -321,3 +327,4 @@ def configure(cfg):
     cfg.env.AP_LIB_EXTRA_CXXFLAGS = dict()
     cfg.env.AP_LIB_EXTRA_CFLAGS = dict()
     cfg.env.DOUBLE_PRECISION_SOURCES = dict()
+    cfg.env.DOUBLE_PRECISION_LIBRARIES = dict()

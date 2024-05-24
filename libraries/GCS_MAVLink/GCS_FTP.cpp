@@ -14,6 +14,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "GCS_config.h"
+
+#if AP_MAVLINK_FTP_ENABLED
+
 #include <AP_HAL/AP_HAL.h>
 
 #include "GCS.h"
@@ -92,12 +97,8 @@ void GCS_MAVLINK::handle_file_transfer_protocol(const mavlink_message_t &msg) {
 
 bool GCS_MAVLINK::send_ftp_reply(const pending_ftp &reply)
 {
-    /*
-      provide same banner we would give with old param download
-    */
-    if (ftp.need_banner_send_mask & (1U<<reply.chan)) {
-        ftp.need_banner_send_mask &= ~(1U<<reply.chan);
-        send_banner();
+    if (!last_txbuf_is_greater(33)) { // It helps avoid GCS timeout if this is less than the threshold where we slow down normal streams (<=49)
+        return false;
     }
     WITH_SEMAPHORE(comm_chan_lock(reply.chan));
     if (!HAVE_PAYLOAD_SPACE(chan, FILE_TRANSFER_PROTOCOL)) {
@@ -116,11 +117,6 @@ bool GCS_MAVLINK::send_ftp_reply(const pending_ftp &reply)
         reply.chan,
         0, reply.sysid, reply.compid,
         payload);
-    if (reply.req_opcode == FTP_OP::TerminateSession) {
-        ftp.last_send_ms = 0;
-    } else {
-        ftp.last_send_ms = AP_HAL::millis();
-    }
     return true;
 }
 
@@ -150,8 +146,24 @@ void GCS_MAVLINK::ftp_error(struct pending_ftp &response, FTP_ERROR error) {
 // send our response back out to the system
 void GCS_MAVLINK::ftp_push_replies(pending_ftp &reply)
 {
+    ftp.last_send_ms = AP_HAL::millis(); // Used to detect active FTP session
+
     while (!send_ftp_reply(reply)) {
         hal.scheduler->delay(2);
+    }
+
+    if (reply.req_opcode == FTP_OP::TerminateSession) {
+        ftp.last_send_ms = 0;
+    }
+    /*
+      provide same banner we would give with old param download
+      Do this after send_ftp_reply() to get the first FTP response out sooner
+      on slow links to avoid GCS timeout.  The slowdown of normal streams in
+      get_reschedule_interval_ms() should help for subsequent responses.
+    */
+    if (ftp.need_banner_send_mask & (1U<<reply.chan)) {
+        ftp.need_banner_send_mask &= ~(1U<<reply.chan);
+        send_banner();
     }
 }
 
@@ -169,7 +181,7 @@ void GCS_MAVLINK::ftp_worker(void) {
         }
 
         // if it's a rerequest and we still have the last response then send it
-        if ((request.sysid == reply.sysid) && (request.compid = reply.compid) &&
+        if ((request.sysid == reply.sysid) && (request.compid == reply.compid) &&
             (request.session == reply.session) && (request.seq_number + 1 == reply.seq_number)) {
             ftp_push_replies(reply);
             continue;
@@ -266,7 +278,7 @@ void GCS_MAVLINK::ftp_worker(void) {
                         const size_t file_size = st.st_size;
 
                         // actually open the file
-                        ftp.fd = AP::FS().open((char *)request.data, 0);
+                        ftp.fd = AP::FS().open((char *)request.data, O_RDONLY);
                         if (ftp.fd == -1) {
                             ftp_error(reply, FTP_ERROR::FailErrno);
                             break;
@@ -439,25 +451,11 @@ void GCS_MAVLINK::ftp_worker(void) {
 
                         request.data[sizeof(request.data) - 1] = 0; // ensure the path is null terminated
 
-                        // actually open the file
-                        int fd = AP::FS().open((char *)request.data, O_RDONLY);
-                        if (fd == -1) {
+                        uint32_t checksum = 0;
+                        if (!AP::FS().crc32((char *)request.data, checksum)) {
                             ftp_error(reply, FTP_ERROR::FailErrno);
                             break;
                         }
-
-                        uint32_t checksum = 0;
-                        ssize_t read_size;
-                        do {
-                            read_size = AP::FS().read(fd, reply.data, sizeof(reply.data));
-                            if (read_size == -1) {
-                                ftp_error(reply, FTP_ERROR::FailErrno);
-                                break;
-                            }
-                            checksum = crc_crc32(checksum, reply.data, MIN((size_t)read_size, sizeof(reply.data)));
-                        } while (read_size > 0);
-
-                        AP::FS().close(fd);
 
                         // reset our scratch area so we don't leak data, and can leverage trimming
                         memset(reply.data, 0, sizeof(reply.data));
@@ -633,6 +631,12 @@ void GCS_MAVLINK::ftp_list_dir(struct pending_ftp &request, struct pending_ftp &
 
     request.data[sizeof(request.data) - 1] = 0; // ensure the path is null terminated
 
+    // Strip trailing /
+    const size_t dir_len = strlen((char *)request.data);
+    if ((dir_len > 1) && (request.data[dir_len - 1] == '/')) {
+        request.data[dir_len - 1] = 0;
+    }
+
     // open the dir
     auto *dir = AP::FS().opendir((char *)request.data);
     if (dir == nullptr) {
@@ -696,3 +700,5 @@ void GCS_MAVLINK::ftp_list_dir(struct pending_ftp &request, struct pending_ftp &
 
     AP::FS().closedir(dir);
 }
+
+#endif  // AP_MAVLINK_FTP_ENABLED

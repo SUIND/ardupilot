@@ -13,6 +13,14 @@ For example `ardurover` SITL may be launched with:
 ros2 launch ardupilot_sitl sitl.launch.py command:=ardurover model:=rover
 ```
 
+Other launch files are included with many arguments.
+Some common arguments are exposed and forwarded to the underlying process.
+
+For example, MAVProxy can be launched, and you can enable the `console` and `map`.
+```bash
+ros2 launch ardupilot_sitl sitl_mavproxy.launch.py map:=True console:=True 
+```
+
 #### `ardupilot_dds_test`
 
 A `colcon` package for testing communication between `micro_ros_agent` and the
@@ -187,7 +195,7 @@ ros2 run micro_ros_agent micro_ros_agent serial --baudrate 115200 --dev ./dev/tt
 ```
 
 ```bash
-arducopter --synthetic-clock --wipe --model quad --speedup 1 --slave 0 --instance 0 --uartC uart:./dev/ttyROS1 --defaults $(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/copter.parm,$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/dds.parm --sim-address 127.0.0.1
+arducopter --synthetic-clock --wipe --model quad --speedup 1 --slave 0 --instance 0 --serial1 uart:./dev/ttyROS1 --defaults $(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/copter.parm,$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/dds_serial.parm --sim-address 127.0.0.1
 ```
 
 ```bash
@@ -201,11 +209,11 @@ ros2 launch ardupilot_sitl virtual_ports.launch.py tty0:=./dev/ttyROS0 tty1:=./d
 ```
 
 ```bash
-ros2 launch ardupilot_sitl micro_ros_agent.launch.py refs:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/dds_xrce_profile.xml baudrate:=115200 device:=./dev/ttyROS0
+ros2 launch ardupilot_sitl micro_ros_agent.launch.py transport:=serial refs:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/dds_xrce_profile.xml baudrate:=115200 device:=./dev/ttyROS0
 ```
 
 ```bash
-ros2 launch ardupilot_sitl sitl.launch.py synthetic_clock:=True wipe:=True model:=quad speedup:=1 slave:=0 instance:=0 uartC:=uart:./dev/ttyROS1 defaults:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/copter.parm,$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/dds.parm sim_address:=127.0.0.1
+ros2 launch ardupilot_sitl sitl.launch.py synthetic_clock:=True wipe:=True model:=quad speedup:=1 slave:=0 instance:=0 serial1:=uart:./dev/ttyROS1 defaults:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/copter.parm,$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/dds_serial.parm sim_address:=127.0.0.1
 ```
 
 ```bash
@@ -215,11 +223,12 @@ ros2 launch ardupilot_sitl mavproxy.launch.py master:=tcp:127.0.0.1:5760 sitl:=1
 Using combined launch file
 
 ```bash
-ros2 launch ardupilot_sitl sitl_dds.launch.py \
+ros2 launch ardupilot_sitl sitl_dds_serial.launch.py \
 \
 tty0:=./dev/ttyROS0 \
 tty1:=./dev/ttyROS1 \
 \
+transport:=serial \
 refs:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/dds_xrce_profile.xml \
 baudrate:=115200 \
 device:=./dev/ttyROS0 \
@@ -230,10 +239,16 @@ model:=quad \
 speedup:=1 \
 slave:=0 \
 instance:=0 \
-uartC:=uart:./dev/ttyROS1 \
-defaults:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/copter.parm,$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/dds.parm \
+serial1:=uart:./dev/ttyROS1 \
+defaults:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/copter.parm,$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/dds_serial.parm \
 sim_address:=127.0.0.1 \
 \
 master:=tcp:127.0.0.1:5760 \
 sitl:=127.0.0.1:5501
+```
+
+UDP version
+
+```
+ros2 launch ardupilot_sitl sitl_dds_udp.launch.py transport:=udp4 refs:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/dds_xrce_profile.xml synthetic_clock:=True wipe:=False model:=quad speedup:=1 slave:=0 instance:=0 defaults:=$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/copter.parm,$(ros2 pkg prefix ardupilot_sitl)/share/ardupilot_sitl/config/default_params/dds_udp.parm sim_address:=127.0.0.1 master:=tcp:127.0.0.1:5760 sitl:=127.0.0.1:5501
 ```

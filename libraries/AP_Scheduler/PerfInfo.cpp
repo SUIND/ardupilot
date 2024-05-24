@@ -1,3 +1,7 @@
+#include "AP_Scheduler_config.h"
+
+#if AP_SCHEDULER_ENABLED
+
 #include "PerfInfo.h"
 
 #include <AP_Logger/AP_Logger.h>
@@ -90,10 +94,10 @@ void AP::PerfInfo::TaskInfo::print(const char* task_name, uint32_t total_time, E
         pct = elapsed_time_us * 100.0f / total_time;
         avg = MIN(uint16_t(elapsed_time_us / tick_count), 9999);
     }
-#if HAL_MINIMIZE_FEATURES
-    const char* fmt = "%-16.16s MIN=%4u MAX=%4u AVG=%4u OVR=%3u SLP=%3u, TOT=%4.1f%%\n";
-#else
+#if AP_SCHEDULER_EXTENDED_TASKINFO_ENABLED
     const char* fmt = "%-32.32s MIN=%4u MAX=%4u AVG=%4u OVR=%3u SLP=%3u, TOT=%4.1f%%\n";
+#else
+    const char* fmt = "%-16.16s MIN=%4u MAX=%4u AVG=%4u OVR=%3u SLP=%3u, TOT=%4.1f%%\n";
 #endif
     str.printf(fmt, task_name,
                 unsigned(MIN(min_time_us, 9999)), unsigned(MIN(max_time_us, 9999)), unsigned(avg),
@@ -196,7 +200,7 @@ float AP::PerfInfo::get_filtered_loop_rate_hz() const
 
 void AP::PerfInfo::update_logging() const
 {
-    gcs().send_text(MAV_SEVERITY_INFO,
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO,
                     "PERF: %u/%u [%lu:%lu] F=%uHz sd=%lu Ex=%lu",
                     (unsigned)get_num_long_running(),
                     (unsigned)get_num_loops(),
@@ -217,3 +221,5 @@ void AP::PerfInfo::set_loop_rate(uint16_t rate_hz)
         filtered_loop_time = 1.0f / rate_hz;
     }
 }
+
+#endif  // AP_SCHEDULER_ENABLED

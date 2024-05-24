@@ -99,9 +99,6 @@ BARO MS56XX I2C:0:0x77
 define HAL_WITH_RAMTRON 1
 # enable FAT filesystem support
 define HAL_OS_FATFS_IO 1
-# now some defines for logging and terrain data files
-define HAL_BOARD_LOG_DIRECTORY "/APM/LOGS"
-define HAL_BOARD_TERRAIN_DIRECTORY "/APM/TERRAIN"
 
 # this defines the default maximum clock on I2C devices.
 define HAL_I2C_MAX_CLOCK 100000
@@ -144,9 +141,6 @@ define HAL_GPIO_A_LED_PIN 10
 define HAL_GPIO_B_LED_PIN 11
 define HAL_GPIO_C_LED_PIN 12
 
-define HAL_GPIO_LED_ON  0
-define HAL_GPIO_LED_OFF 1
-
 PC0 PRESSURE_SENS ADC1 SCALE(1)
 PC1 RSSI_IN ADC1
 PC2 BATT_CURRENT_SENS ADC1 SCALE(2)
@@ -165,3 +159,5 @@ PC9  EXTERN_GPIO5 OUTPUT GPIO(5)
 #  IRQ for MPU6000
 PB0 EXTI_MPU6000 INPUT PULLUP
 PB1 DRDY_HMC5883 INPUT PULLUP
+
+include ../include/minimize_features.inc

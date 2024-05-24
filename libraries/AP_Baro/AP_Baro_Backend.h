@@ -12,15 +12,10 @@ public:
     // data to the frontend
     virtual void update() = 0;
 
-    // accumulate function. This is used for backends that don't use a
-    // timer, and need to be called regularly by the main code to
-    // trigger them to read the sensor
-    virtual void accumulate(void) {}
-
     void backend_update(uint8_t instance);
 
     //  Check that the baro valid by using a mean filter.
-    // If the value further that filtrer_range from mean value, it is rejected.
+    // If the value further that filter_range from mean value, it is rejected.
     bool pressure_ok(float press);
     uint32_t get_error_count() const { return _error_count; }
 

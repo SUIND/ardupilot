@@ -345,44 +345,7 @@ void NavEKF3_core::InitialiseVariables()
 
     // range beacon fusion variables
 #if EK3_FEATURE_BEACON_FUSION
-    memset((void *)&rngBcn.dataDelayed, 0, sizeof(rngBcn.dataDelayed));
-    rngBcn.lastPassTime_ms = 0;
-    rngBcn.testRatio = 0.0f;
-    rngBcn.health = false;
-    rngBcn.varInnov = 0.0f;
-    rngBcn.innov = 0.0f;
-    memset(&rngBcn.lastTime_ms, 0, sizeof(rngBcn.lastTime_ms));
-    rngBcn.dataToFuse = false;
-    rngBcn.vehiclePosNED.zero();
-    rngBcn.vehiclePosErr = 1.0f;
-    rngBcn.last3DmeasTime_ms = 0;
-    rngBcn.goodToAlign = false;
-    rngBcn.lastChecked = 0;
-    rngBcn.receiverPos.zero();
-    memset(&rngBcn.receiverPosCov, 0, sizeof(rngBcn.receiverPosCov));
-    rngBcn.alignmentStarted =  false;
-    rngBcn.alignmentCompleted = false;
-    rngBcn.lastIndex = 0;
-    rngBcn.posSum.zero();
-    rngBcn.numMeas = 0;
-    rngBcn.sum = 0.0f;
-    rngBcn.N = 0;
-    rngBcn.maxPosD = 0.0f;
-    rngBcn.minPosD = 0.0f;
-    rngBcn.posDownOffsetMax = 0.0f;
-    rngBcn.posOffsetMaxVar = 0.0f;
-    rngBcn.maxOffsetStateChangeFilt = 0.0f;
-    rngBcn.posDownOffsetMin = 0.0f;
-    rngBcn.posOffsetMinVar = 0.0f;
-    rngBcn.minOffsetStateChangeFilt = 0.0f;
-    rngBcn.fuseDataReportIndex = 0;
-    if (dal.beacon()) {
-        if (rngBcn.fusionReport == nullptr) {
-            rngBcn.fusionReport = new BeaconFusion::FusionReport[dal.beacon()->count()];
-        }
-    }
-    rngBcn.posOffsetNED.zero();
-    rngBcn.originEstInit = false;
+    rngBcn.InitialiseVariables();
 #endif  // EK3_FEATURE_BEACON_FUSION
 
 #if EK3_FEATURE_BODY_ODOM
@@ -900,7 +863,7 @@ void NavEKF3_core::calcOutputStates()
     if (!accelPosOffset.is_zero()) {
         // calculate the average angular rate across the last IMU update
         // note delAngDT is prevented from being zero in readIMUData()
-        Vector3F angRate = imuDataNew.delAng * (1.0f/imuDataNew.delAngDT);
+        Vector3F angRate = dal.ins().get_gyro(gyro_index_active).toftype();
 
         // Calculate the velocity of the body frame origin relative to the IMU in body frame
         // and rotate into earth frame. Note % operator has been overloaded to perform a cross product
@@ -1926,12 +1889,11 @@ void NavEKF3_core::ConstrainVariances()
         zeroRows(P,10,12);
     }
 
-    const ftype minStateVarTarget = 1E-11;
+    const ftype minSafeStateVar = 5E-9;
     if (!inhibitDelVelBiasStates) {
 
         // Find the maximum delta velocity bias state variance and request a covariance reset if any variance is below the safe minimum
-        const ftype minSafeStateVar = minStateVarTarget * 0.1f;
-        ftype maxStateVar = minSafeStateVar;
+        ftype maxStateVar = 0.0F;
         bool resetRequired = false;
         for (uint8_t stateIndex=13; stateIndex<=15; stateIndex++) {
             if (P[stateIndex][stateIndex] > maxStateVar) {
@@ -1943,33 +1905,30 @@ void NavEKF3_core::ConstrainVariances()
 
         // To ensure stability of the covariance matrix operations, the ratio of a max and min variance must
         // not exceed 100 and the minimum variance must not fall below the target minimum
-        ftype minAllowedStateVar = fmaxF(0.01f * maxStateVar, minStateVarTarget);
+        ftype minAllowedStateVar = fmaxF(0.01f * maxStateVar, minSafeStateVar);
         for (uint8_t stateIndex=13; stateIndex<=15; stateIndex++) {
             P[stateIndex][stateIndex] = constrain_ftype(P[stateIndex][stateIndex], minAllowedStateVar, sq(10.0f * dtEkfAvg));
         }
 
         // If any one axis has fallen below the safe minimum, all delta velocity covariance terms must be reset to zero
         if (resetRequired) {
-            ftype delVelBiasVar[3];
-            // store all delta velocity bias variances
-            for (uint8_t i=0; i<=2; i++) {
-                delVelBiasVar[i] = P[i+13][i+13];
-            }
             // reset all delta velocity bias covariances
             zeroCols(P,13,15);
             zeroRows(P,13,15);
-            // restore all delta velocity bias variances
-            for (uint8_t i=0; i<=2; i++) {
-                P[i+13][i+13] = delVelBiasVar[i];
-            }
+            // set all delta velocity bias variances to initial values and zero bias states
+            P[13][13] = sq(ACCEL_BIAS_LIM_SCALER * frontend->_accBiasLim * dtEkfAvg);
+            P[14][14] = P[13][13];
+            P[15][15] = P[13][13];
+            stateStruct.accel_bias.zero();
         }
 
     } else {
         zeroCols(P,13,15);
         zeroRows(P,13,15);
+        // set all delta velocity bias variances to a margin above the minimum safe value
         for (uint8_t i=0; i<=2; i++) {
             const uint8_t stateIndex = i + 13;
-            P[stateIndex][stateIndex] = fmaxF(P[stateIndex][stateIndex], minStateVarTarget);
+            P[stateIndex][stateIndex] = fmaxF(P[stateIndex][stateIndex], minSafeStateVar * 10.0F);
         }
     }
 
@@ -2188,6 +2147,7 @@ void NavEKF3_core::bestRotationOrder(rotationOrder &order)
 // and log with value generated by NavEKF3_core::calcTiltErrorVariance()
 void NavEKF3_core::verifyTiltErrorVariance()
 {
+#if HAL_LOGGING_ENABLED
     const Vector3f gravity_ef = Vector3f(0.0f,0.0f,1.0f);
     Matrix3f Tnb;
     const float quat_delta = 0.001f;
@@ -2227,6 +2187,7 @@ void NavEKF3_core::verifyTiltErrorVariance()
         };
         AP::logger().WriteBlock(&msg, sizeof(msg));
     }
+#endif  // HAL_LOGGING_ENABLED
 }
 #endif
 

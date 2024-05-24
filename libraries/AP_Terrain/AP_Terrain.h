@@ -18,11 +18,7 @@
 #include <AP_Filesystem/AP_Filesystem_config.h>
 
 #ifndef AP_TERRAIN_AVAILABLE
-#if HAVE_FILESYSTEM_SUPPORT && defined(HAL_BOARD_TERRAIN_DIRECTORY)
-#define AP_TERRAIN_AVAILABLE 1
-#else
-#define AP_TERRAIN_AVAILABLE 0
-#endif
+#define AP_TERRAIN_AVAILABLE AP_FILESYSTEM_FILE_READING_ENABLED
 #endif
 
 #if AP_TERRAIN_AVAILABLE
@@ -31,6 +27,7 @@
 #include <AP_Common/Location.h>
 #include <AP_Param/AP_Param.h>
 #include <GCS_MAVLink/GCS_MAVLink.h>
+#include <AP_Logger/AP_Logger_config.h>
 
 #define TERRAIN_DEBUG 0
 
@@ -54,7 +51,9 @@
 #define TERRAIN_GRID_BLOCK_SIZE_Y (TERRAIN_GRID_MAVLINK_SIZE*TERRAIN_GRID_BLOCK_MUL_Y)
 
 // number of grid_blocks in the LRU memory cache
+#ifndef TERRAIN_GRID_BLOCK_CACHE_SIZE
 #define TERRAIN_GRID_BLOCK_CACHE_SIZE 12
+#endif
 
 // format of grid on disk
 #define TERRAIN_GRID_FORMAT_VERSION 1
@@ -176,15 +175,22 @@ public:
      */
     float lookahead(float bearing, float distance, float climb_ratio);
 
+#if HAL_LOGGING_ENABLED
     /*
       log terrain status to AP_Logger
      */
     void log_terrain_data();
+#endif
 
     /*
       get some statistics for TERRAIN_REPORT
      */
     void get_statistics(uint16_t &pending, uint16_t &loaded) const;
+
+    /*
+      get grid spacing in meters
+     */
+    uint16_t get_grid_spacing() const { return MAX(grid_spacing, 0); };
 
     /*
       returns true if initialisation failed because out-of-memory
@@ -367,6 +373,7 @@ private:
     AP_Int16 grid_spacing; // meters between grid points
     AP_Int16 options; // option bits
     AP_Float offset_max;
+    AP_Int16 config_cache_size;
 
     enum class Options {
         DisableDownload = (1U<<0),

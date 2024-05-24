@@ -19,14 +19,22 @@ public:
         uint32_t last_update_ms;    // last update time in milliseconds, determines whether active
         uint16_t types;             // telemetry types present
         uint16_t count;             // number of times updated
+#if AP_EXTENDED_DSHOT_TELEM_V2_ENABLED
+        uint16_t edt2_status;       // status reported by Extended DShot Telemetry v2
+        uint16_t edt2_stress;       // stress reported in dedicated messages by Extended DShot Telemetry v2
+#endif
+
+        // return true if the data is stale
+        bool stale(uint32_t now_ms=0) const volatile;
     };
 
     struct RpmData {
         float    rpm;               // rpm
         float    prev_rpm;          // previous rpm
         float    error_rate;        // error rate in percent
-        uint32_t last_update_us;    // last update time, determines whether active
+        uint32_t last_update_us;    // last update time, greater then 0 means we've gotten data at some point
         float    update_rate_hz;
+        bool     data_valid;        // if this isn't set to true, then the ESC data should be ignored
     };
 
     enum TelemetryType {
@@ -38,6 +46,10 @@ public:
         USAGE       = 1 << 5,
         TEMPERATURE_EXTERNAL = 1 << 6,
         MOTOR_TEMPERATURE_EXTERNAL  = 1 << 7,
+#if AP_EXTENDED_DSHOT_TELEM_V2_ENABLED
+        EDT2_STATUS = 1 << 8,
+        EDT2_STRESS = 1 << 9,
+#endif
     };
 
 

@@ -17,12 +17,14 @@
 
 #if AP_RPM_ENABLED
 
+#include "RPM_Backend.h"
 #include "RPM_Pin.h"
 #include "RPM_SITL.h"
 #include "RPM_EFI.h"
 #include "RPM_Generator.h"
 #include "RPM_HarmonicNotch.h"
 #include "RPM_ESC_Telem.h"
+#include "RPM_DroneCAN.h"
 
 #include <AP_Logger/AP_Logger.h>
 
@@ -98,6 +100,11 @@ void AP_RPM::init(void)
             drivers[i] = new AP_RPM_HarmonicNotch(*this, i, state[i]);
             break;
 #endif  // AP_RPM_HARMONICNOTCH_ENABLED
+#if AP_RPM_DRONECAN_ENABLED
+        case RPM_TYPE_DRONECAN:
+            drivers[i] = new AP_RPM_DroneCAN(*this, i, state[i]);
+            break;
+#endif // AP_RPM_DRONECAN_ENABLED
 #if AP_RPM_SIM_ENABLED
         case RPM_TYPE_SITL:
             drivers[i] = new AP_RPM_SITL(*this, i, state[i]);
@@ -199,6 +206,10 @@ void AP_RPM::update(void)
             }
 
             drivers[i]->update();
+
+#if AP_RPM_ESC_TELEM_OUTBOUND_ENABLED
+            drivers[i]->update_esc_telem_outbound();
+#endif
         }
     }
 
@@ -282,7 +293,7 @@ bool AP_RPM::arming_checks(size_t buflen, char *buffer) const
 }
 
 #if HAL_LOGGING_ENABLED
-void AP_RPM::Log_RPM()
+void AP_RPM::Log_RPM() const
 {
     float rpm1 = -1, rpm2 = -1;
 
@@ -298,6 +309,18 @@ void AP_RPM::Log_RPM()
     AP::logger().WriteBlock(&pkt, sizeof(pkt));
 }
 #endif
+
+#ifdef HAL_PERIPH_ENABLE_RPM_STREAM
+// Return the sensor id to use for streaming over DroneCAN, negative number disables
+int8_t AP_RPM::get_dronecan_sensor_id(uint8_t instance) const
+{
+    if (!enabled(instance)) {
+        return -1;
+    }
+    return _params[instance].dronecan_sensor_id;
+}
+#endif
+
 
 // singleton instance
 AP_RPM *AP_RPM::_singleton;

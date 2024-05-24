@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <AP_Common/AP_Common.h> // for FMT_PRINTF
 #include "AP_HAL_Namespace.h"
+#include <AP_Logger/AP_Logger_config.h>
 
 class ExpandingString;
 
@@ -147,7 +148,8 @@ public:
     // allocate and free DMA-capable memory if possible. Otherwise return normal memory
     enum Memory_Type {
         MEM_DMA_SAFE,
-        MEM_FAST
+        MEM_FAST,
+        MEM_FILESYSTEM
     };
     virtual void *malloc_type(size_t size, Memory_Type mem_type) { return calloc(1, size); }
     virtual void free_type(void *ptr, size_t size, Memory_Type mem_type) { return free(ptr); }
@@ -184,10 +186,20 @@ public:
     // load persistent parameters from bootloader sector
     virtual bool load_persistent_params(ExpandingString &str) const { return false; }
 
+    virtual bool get_persistent_param_by_name(const char *name, char* value, size_t& len) const {
+        return false;
+    }
+
 #if HAL_UART_STATS_ENABLED
     // request information on uart I/O
     virtual void uart_info(ExpandingString &str) {}
+
+#if HAL_LOGGING_ENABLED
+    // Log UART message for each serial port
+    virtual void uart_log() {};
 #endif
+#endif // HAL_UART_STATS_ENABLED
+
     // request information on timer frequencies
     virtual void timer_info(ExpandingString &str) {}
 

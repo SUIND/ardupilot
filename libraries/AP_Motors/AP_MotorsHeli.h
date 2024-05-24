@@ -66,9 +66,6 @@ public:
     // heli specific methods
     //
 
-    // parameter_check - returns true if helicopter specific parameters are sensible, used for pre-arm check
-    virtual bool parameter_check(bool display_msg) const;
-
     //set turbine start flag on to initiaize starting sequence
     void set_turb_start(bool turb_start) { _heliflags.start_engine = turb_start; }
 
@@ -77,9 +74,6 @@ public:
 
     // set_collective_for_landing - limits collective from going too low if we know we are landed
     void set_collective_for_landing(bool landing) { _heliflags.landing_collective = landing; }
-
-    // set_inverted_flight - enables/disables inverted flight
-    void set_inverted_flight(bool inverted) { _heliflags.inverted_flight = inverted; }
 
     // get_rsc_mode - gets the current rotor speed control method
     uint8_t get_rsc_mode() const { return _main_rotor.get_control_mode(); }
@@ -159,6 +153,15 @@ public:
     // Run arming checks
     bool arming_checks(size_t buflen, char *buffer) const override;
 
+    // Tell user motor test is disabled on heli
+    bool motor_test_checks(size_t buflen, char *buffer) const override;
+
+    // output_test_seq - disabled on heli, do nothing
+    void _output_test_seq(uint8_t motor_seq, int16_t pwm) override {};
+
+    // Helper function for param conversions to be done in motors class
+    virtual void heli_motors_param_conversions(void) { return; }
+
     // var_info for holding Parameter information
     static const struct AP_Param::GroupInfo var_info[];
 
@@ -176,14 +179,16 @@ protected:
 
     // output - sends commands to the motors
     void output_armed_stabilizing() override;
-    void output_armed_zero_throttle();
     void output_disarmed();
 
     // external objects we depend upon
     AP_MotorsHeli_RSC   _main_rotor;            // main rotor
 
     // update_motor_controls - sends commands to motor controllers
-    virtual void update_motor_control(RotorControlState state) = 0;
+    virtual void update_motor_control(AP_MotorsHeli_RSC::RotorControlState state) = 0;
+
+    // Converts AP_Motors::SpoolState from _spool_state variable to AP_MotorsHeli_RSC::RotorControlState
+    AP_MotorsHeli_RSC::RotorControlState get_rotor_control_state() const;
 
     // run spool logic
     void                output_logic();
@@ -200,12 +205,9 @@ protected:
     // move_actuators - moves swash plate and tail rotor
     virtual void move_actuators(float roll_out, float pitch_out, float coll_in, float yaw_out) = 0;
 
-    // reset_swash_servo - free up swash servo for maximum movement
-    void reset_swash_servo(SRV_Channel::Aux_servo_function_t function);
-
     // init_outputs - initialise Servo/PWM ranges and endpoints.  This
     // method also updates the initialised flag.
-    virtual bool init_outputs() = 0;
+    virtual void init_outputs() = 0;
 
     // calculate_armed_scalars - must be implemented by child classes
     virtual void calculate_armed_scalars() = 0;
@@ -216,9 +218,6 @@ protected:
     // servo_test - move servos through full range of movement
     // to be overloaded by child classes, different vehicle types would have different movement patterns
     virtual void servo_test() = 0;
-
-    // write to a swash servo. output value is pwm
-    void rc_write_swash(uint8_t chan, float swash_in);
 
     // save parameters as part of disarming
     void save_params_on_disarm() override;
@@ -234,6 +233,14 @@ protected:
     // update turbine start flag
     void update_turbine_start();
 
+    // Update _heliflags.rotor_runup_complete value writing log event on state change
+    void set_rotor_runup_complete(bool new_value);
+
+#if HAL_LOGGING_ENABLED
+    // Returns the scaling value required to convert the collective angle parameters into the cyclic-output-to-angle conversion for blade angle logging
+    float get_cyclic_angle_scaler(void) const;
+#endif
+
     // enum values for HOVER_LEARN parameter
     enum HoverLearn {
         HOVER_LEARN_DISABLED = 0,
@@ -245,7 +252,6 @@ protected:
     struct heliflags_type {
         uint8_t landing_collective      : 1;    // true if collective is setup for landing which has much higher minimum
         uint8_t rotor_runup_complete    : 1;    // true if the rotors have had enough time to wind up
-        uint8_t inverted_flight         : 1;    // true for inverted flight
         uint8_t init_targets_on_arming  : 1;    // 0 if targets were initialized, 1 if targets were not initialized after arming
         uint8_t save_rsc_mode           : 1;    // used to determine the rsc mode needs to be saved while disarmed
         uint8_t in_autorotation         : 1;    // true if aircraft is in autorotation

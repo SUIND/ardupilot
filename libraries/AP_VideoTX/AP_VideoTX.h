@@ -62,6 +62,9 @@ public:
         FATSHARK,
         RACEBAND,
         LOW_RACEBAND,
+        BAND_1G3_A,
+        BAND_1G3_B,
+        BAND_X,
         MAX_BANDS
     };
 

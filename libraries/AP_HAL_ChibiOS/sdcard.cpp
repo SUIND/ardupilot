@@ -73,7 +73,11 @@ bool sdcard_init()
     if (sdcd.bouncebuffer == nullptr) {
         // allocate 4k bouncebuffer for microSD to match size in
         // AP_Logger
+#if defined(STM32H7)
         bouncebuffer_init(&sdcd.bouncebuffer, 4096, true);
+#else
+        bouncebuffer_init(&sdcd.bouncebuffer, 4096, false);
+#endif
     }
 
     if (sdcard_running) {
@@ -184,7 +188,7 @@ bool sdcard_retry(void)
 #ifdef USE_POSIX
     if (!sdcard_running) {
         if (sdcard_init()) {
-#if HAVE_FILESYSTEM_SUPPORT
+#if AP_FILESYSTEM_FILE_WRITING_ENABLED
             // create APM directory
             AP::FS().mkdir("/APM");
 #endif
@@ -211,6 +215,22 @@ void spiStartHook(SPIDriver *spip, const SPIConfig *config)
 
 void spiStopHook(SPIDriver *spip)
 {
+}
+
+__RAMFUNC__ void spiAcquireBusHook(SPIDriver *spip)
+{
+    if (sdcard_running) {
+        ChibiOS::SPIDevice *devptr = static_cast<ChibiOS::SPIDevice*>(device.get());
+        devptr->acquire_bus(true, true);
+    }
+}
+
+__RAMFUNC__ void spiReleaseBusHook(SPIDriver *spip)
+{
+    if (sdcard_running) {
+        ChibiOS::SPIDevice *devptr = static_cast<ChibiOS::SPIDevice*>(device.get());
+        devptr->acquire_bus(false, true);
+    }
 }
 
 __RAMFUNC__ void spiSelectHook(SPIDriver *spip)

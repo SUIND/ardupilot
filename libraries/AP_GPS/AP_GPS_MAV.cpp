@@ -16,10 +16,13 @@
 //
 //  MAVLINK GPS driver
 //
-#include "AP_GPS_MAV.h"
-#include <stdint.h>
+
+#include "AP_GPS_config.h"
 
 #if AP_GPS_MAV_ENABLED
+
+#include "AP_GPS_MAV.h"
+#include <stdint.h>
 
 // Reading does nothing in this class; we simply return whether or not
 // the latest reading has been consumed.  By calling this function we assume
@@ -137,6 +140,7 @@ void AP_GPS_MAV::handle_msg(const mavlink_message_t &msg)
             break;
             }
 
+#if AP_MAVLINK_MSG_HIL_GPS_ENABLED
         case MAVLINK_MSG_ID_HIL_GPS: {
             mavlink_hil_gps_t packet;
             mavlink_msg_hil_gps_decode(&msg, &packet);
@@ -173,6 +177,7 @@ void AP_GPS_MAV::handle_msg(const mavlink_message_t &msg)
             _new_data = true;
             break;
             }
+#endif  // AP_MAVLINK_MSG_HIL_GPS_ENABLED
         default:
             // ignore all other messages
             break;
