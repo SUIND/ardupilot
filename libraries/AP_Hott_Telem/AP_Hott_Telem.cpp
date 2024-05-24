@@ -36,6 +36,7 @@
 #include <AP_Mission/AP_Mission.h>
 #include <AP_SerialManager/AP_SerialManager.h>
 #include <stdio.h>
+#include <GCS_MAVLink/GCS.h>
 
 #define PROT_BINARY   0x80
 #define PROT_ID_GAM   0x8D
