@@ -463,7 +463,7 @@ void AP_Hott_Telem::loop_1(void)
 {
     uart_1->begin(19200, 10, 10);
     uart_1->set_unbuffered_writes(true);
-    uart_1->set_blocking_writes(true);
+    
     uint16_t tmpraw, rpmdisp;
     char stastring[15];
     uint32_t time_sent = AP_HAL::millis();
@@ -496,7 +496,7 @@ void AP_Hott_Telem::loop_2(void)
 {
     uart_2->begin(19200, 10, 10);
     uart_2->set_unbuffered_writes(true);
-    uart_2->set_blocking_writes(true);
+    
     uint16_t tmpraw, rpmdisp;
     char stastring[15];
     uint32_t time_sent = AP_HAL::millis();
