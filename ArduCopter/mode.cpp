@@ -231,6 +231,16 @@ bool Copter::set_mode(Mode::Number mode, ModeReason reason)
         return false;
     }
 
+    // RTL to GUIDED switch not allowed
+    if (new_flightmode->mode_number() == Mode::Number::GUIDED) {
+      if(copter.rtl_latch)
+      {
+        reason = ModeReason::UNAVAILABLE;
+        mode_change_failed(new_flightmode, "Not allowed after RTL");
+        return false;
+      }
+    }
+
     bool ignore_checks = !motors->armed();   // allow switching to any mode if disarmed.  We rely on the arming check to perform
 
 #if FRAME_CONFIG == HELI_FRAME
@@ -294,6 +304,12 @@ bool Copter::set_mode(Mode::Number mode, ModeReason reason)
     if (!new_flightmode->init(ignore_checks)) {
         mode_change_failed(new_flightmode, "init failed");
         return false;
+    }
+
+    // set RTL latch
+    if(new_flightmode->mode_number() == Mode::Number::RTL)
+    {
+      copter.rtl_latch = true;
     }
 
     // perform any cleanup required by previous flight mode

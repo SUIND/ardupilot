@@ -390,6 +390,9 @@ private:
     // inertial nav alt when we armed
     float arming_altitude_m;
 
+    // RTL mode latch (used to not allow mode switch to guided once the system switches to RTL)
+    bool rtl_latch = false;
+
     // Failsafe
     struct {
         uint32_t terrain_first_failure_ms;  // the first time terrain data access failed - used to calculate the duration of the failure
