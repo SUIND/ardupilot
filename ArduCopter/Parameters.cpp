@@ -1253,6 +1253,15 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @User: Standard
     AP_GROUPINFO("SU_SPRAY_ALT", 19, ParametersG2, spray_height, 3),
 
+    // @Param: MISSION_TYPE
+    // @DisplayName: Mission type for Suind's Navigation Stack
+    // @Description: 0: default, 1: rubber
+    // @Units: none
+    // @Range: 0 10
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("SU_MSN_TYPE", 20, ParametersG2, mission_type, 0),
+
     // ID 62 is reserved for the AP_SUBGROUPEXTENSION
 
     AP_GROUPEND

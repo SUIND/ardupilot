@@ -691,6 +691,8 @@ public:
     AP_Int8 mission_resume;
 
     AP_Float spray_height;
+
+    AP_Int8 mission_type;
 };
 
 extern const AP_Param::Info        var_info[];
