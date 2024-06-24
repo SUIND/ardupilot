@@ -702,7 +702,7 @@ bool AP_Arming::rc_arm_checks(AP_Arming::Method method)
         if (rc().arming_check_throttle()) {
             RC_Channel *c = rc().channel(rcmap->throttle() - 1);
             if (c != nullptr) {
-                if (c->get_control_in() != 0) {
+                if (c->get_control_in() != 0 && gcs().custom_mode() != 4) { // allow this only in guided
                     check_failed(ARMING_CHECK_RC, true, "Throttle (RC%d) is not neutral", rcmap->throttle());
                     check_passed = false;
                 }
