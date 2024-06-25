@@ -176,7 +176,16 @@ void AP_Arming::update(void)
     if (option_enabled(Option::DISABLE_PREARM_DISPLAY)) {
         display_fail = false;
     }
-
+    uint8_t state = 0;
+    if (gcs().get_companion_ready_status() && gcs().get_mission_ready_status() && gcs().get_battery_ready_status())
+    {
+      state = 1;
+    }
+    else
+    {
+      state = 0;
+    }
+    gcs().send_button_change(state);
     pre_arm_checks(display_fail);
 }
 

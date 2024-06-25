@@ -1072,6 +1072,7 @@ public:
 
     void send_to_active_channels(uint32_t msgid, const char *pkt);
 
+    void send_button_change(uint8_t& state);
     void send_text(MAV_SEVERITY severity, const char *fmt, ...) FMT_PRINTF(3, 4);
     void send_textv(MAV_SEVERITY severity, const char *fmt, va_list arg_list);
     virtual void send_textv(MAV_SEVERITY severity, const char *fmt, va_list arg_list, uint8_t mask);

@@ -88,6 +88,15 @@ void GCS::send_text(MAV_SEVERITY severity, const char *fmt, ...)
     va_end(arg_list);
 }
 
+void GCS::send_button_change(uint8_t &state)
+{
+  mavlink_button_change_t packet {};
+  packet.time_boot_ms = AP_HAL::millis();
+  packet.last_change_ms = 0;
+  packet.state = state;
+  gcs().send_to_active_channels(MAVLINK_MSG_ID_BUTTON_CHANGE, (const char *)&packet);
+}
+
 void GCS::send_to_active_channels(uint32_t msgid, const char *pkt)
 {
     const mavlink_msg_entry_t *entry = mavlink_get_msg_entry(msgid);
