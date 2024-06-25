@@ -1262,6 +1262,15 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @User: Standard
     AP_GROUPINFO("SU_MSN_TYPE", 20, ParametersG2, mission_type, 0),
 
+    // @Param: SPRAY_ATOMIZATION
+    // @DisplayName: Atomisation level for centrifugal nozzles
+    // @Description: 0-1: 1 highest atomization (i.e smallest particle size)
+    // @Units: none
+    // @Range: 0 1
+    // @Increment: 0.01
+    // @User: Standard
+    AP_GROUPINFO("SU_SPRY_ATM", 21, ParametersG2, spray_atomization, 1),
+
     // ID 62 is reserved for the AP_SUBGROUPEXTENSION
 
     AP_GROUPEND
