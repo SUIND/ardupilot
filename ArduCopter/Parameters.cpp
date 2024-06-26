@@ -1270,6 +1270,15 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @Increment: 0.01
     // @User: Standard
     AP_GROUPINFO("SU_SPRY_ATM", 21, ParametersG2, spray_atomization, 1),
+    
+    // @Param: TRAVEL_FLIGHT_SPEED
+    // @DisplayName: Flight Speed During Travel
+    // @Description: This will be the target flight speed in spray mission
+    // @Units: m/s
+    // @Range: 2 10
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("SU_TRVL_FLT_SPD", 22, ParametersG2, travel_flight_speed, 5),
 
     // ID 62 is reserved for the AP_SUBGROUPEXTENSION
 

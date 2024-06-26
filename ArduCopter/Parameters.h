@@ -695,6 +695,8 @@ public:
     AP_Int8 mission_type;
 
     AP_Float spray_atomization;
+
+    AP_Float travel_flight_speed;
 };
 
 extern const AP_Param::Info        var_info[];
