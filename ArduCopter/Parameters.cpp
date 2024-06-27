@@ -1264,10 +1264,10 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
 
     // @Param: SPRAY_ATOMIZATION
     // @DisplayName: Atomisation level for centrifugal nozzles
-    // @Description: 0-1: 1 highest atomization (i.e smallest particle size)
+    // @Description: 1-5: 5 highest atomization (i.e smallest particle size)
     // @Units: none
-    // @Range: 0 1
-    // @Increment: 0.01
+    // @Range: 0 5
+    // @Increment: 1
     // @User: Standard
     AP_GROUPINFO("SU_SPRY_ATM", 21, ParametersG2, spray_atomization, 1),
     
