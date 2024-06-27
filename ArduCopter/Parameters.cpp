@@ -1269,7 +1269,7 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @Range: 0 5
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("SU_SPRY_ATM", 21, ParametersG2, spray_atomization, 1),
+    AP_GROUPINFO("SU_SPRY_ATM", 21, ParametersG2, spray_atomization, 5),
     
     // @Param: TRAVEL_FLIGHT_SPEED
     // @DisplayName: Flight Speed During Travel
