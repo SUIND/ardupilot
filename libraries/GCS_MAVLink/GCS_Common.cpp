@@ -663,11 +663,23 @@ void GCS_MAVLINK::handle_mission_count(const mavlink_message_t &msg)
     mavlink_msg_mission_count_decode(&msg, &packet);
 
     MissionItemProtocol *prot = gcs().get_prot_for_mission_type((MAV_MISSION_TYPE)packet.mission_type);
-    if (prot == nullptr) {
+    if (prot == nullptr)
+    {
         mavlink_msg_mission_ack_send(chan,
                                      msg.sysid,
                                      msg.compid,
                                      MAV_MISSION_UNSUPPORTED,
+                                     packet.mission_type);
+        return;
+    }
+
+    // Deny mission when already armed
+    if (AP::arming().is_armed())
+    {
+        mavlink_msg_mission_ack_send(chan,
+                                     msg.sysid,
+                                     msg.compid,
+                                     MAV_MISSION_DENIED,
                                      packet.mission_type);
         return;
     }
@@ -838,6 +850,13 @@ void GCS_MAVLINK::handle_mission_item(const mavlink_message_t &msg)
     }
     const uint8_t current = packet.current;
     const MAV_MISSION_TYPE type = (MAV_MISSION_TYPE)packet.mission_type;
+
+    // Deny mission when already armed
+    if (AP::arming().is_armed())
+    {
+        send_mission_ack(msg, type, MAV_MISSION_DENIED);
+        return;
+    }
 
     if (type == MAV_MISSION_TYPE_MISSION && (current == 2 || current == 3)) {
         struct AP_Mission::Mission_Command cmd = {};
