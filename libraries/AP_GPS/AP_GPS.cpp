@@ -392,6 +392,51 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
 #endif // GPS_MAX_RECEIVERS > 1
 #endif // HAL_ENABLE_LIBUAVCAN_DRIVERS
 
+    // @Param: _CACHE_UID
+    // @DisplayName: Flag to cache UID
+    // @Description: Controls whether we cache GPS UID
+    // @Units: 
+    // @Values: 0 1
+    // @Range: 0 1
+    // @User: Advanced
+    AP_GROUPINFO("_CACHE_UID", 32, AP_GPS, _cache_uid, 0),
+
+    // @Param: _CACHED_UID_1
+    // @DisplayName: Cached UID First Part
+    // @Description: Stores first part of cached GPS UID
+    // @Units: 
+    // @Values:
+    // @Range:
+    // @User: Advanced
+    AP_GROUPINFO("_CACHED_UID_1", 33, AP_GPS, _cached_uid_1, 0),
+
+    // @Param: _CACHED_UID_2
+    // @DisplayName: Cached UID Second Part
+    // @Description: Stores second part of cached GPS UID
+    // @Units: 
+    // @Values:
+    // @Range:
+    // @User: Advanced
+    AP_GROUPINFO("_CACHED_UID_2", 34, AP_GPS, _cached_uid_2, 0),
+
+    // @Param: _CACHED_UID_3
+    // @DisplayName: Cached UID Third Part
+    // @Description: Stores third part of cached GPS UID
+    // @Units: 
+    // @Values:
+    // @Range:
+    // @User: Advanced
+    AP_GROUPINFO("_CACHED_UID_3", 35, AP_GPS, _cached_uid_3, 0),
+
+    // @Param: _CACHED_UID_4
+    // @DisplayName: Cached UID Fourth Part
+    // @Description: Stores fourth part of cached GPS UID
+    // @Units: 
+    // @Values:
+    // @Range:
+    // @User: Advanced
+    AP_GROUPINFO("_CACHED_UID_4", 36, AP_GPS, _cached_uid_4, 0),
+
     AP_GROUPEND
 };
 
@@ -677,6 +722,21 @@ AP_GPS_Backend *AP_GPS::_detect_instance(uint8_t instance)
 {
     struct detect_state *dstate = &detect_state[instance];
 
+    // Suind: if uids dont match return nullptr
+    if (gps_uid_current[0] == 0 && gps_uid_current[1] == 0 && gps_uid_current[2] == 0 && gps_uid_current[3] == 0)
+    {
+        GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "GPS cache not set");
+        return nullptr;
+    }
+    if (_cache_uid.get() == 0)
+    {
+        if (gps_uid_current[0] == _cached_uid_1.get() && gps_uid_current[1] == _cached_uid_2.get() 
+            && gps_uid_current[2] == _cached_uid_3.get() && gps_uid_current[3] == _cached_uid_4.get())
+        {
+            GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "GPS tampered");
+            return nullptr;
+        }
+    }
     switch (_type[instance]) {
     // user has to explicitly set the MAV type, do not use AUTO
     // do not try to detect the MAV type, assume it's there
@@ -2240,6 +2300,24 @@ bool AP_GPS::gps_yaw_deg(uint8_t instance, float &yaw_deg, float &accuracy_deg, 
         accuracy_deg = 10;
     }
     return true;
+}
+
+void AP_GPS::setGpsCachedUid(uint8_t *uid)
+{
+    uint32_t tmp;
+    memcpy(&tmp, uid, 4);
+    _cached_uid_1.set(tmp);
+    memcpy(&tmp, uid+4, 4);
+    _cached_uid_2.set(tmp);
+    memcpy(&tmp, uid+8, 4);
+    _cached_uid_3.set(tmp);
+    memcpy(&tmp, uid+12, 4);
+    _cached_uid_4.set(tmp);
+}
+
+void AP_GPS::setGpsCurrentUid(uint8_t *uid)
+{
+    memcpy(gps_uid_current, uid, 16);
 }
 
 namespace AP {

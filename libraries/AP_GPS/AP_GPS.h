@@ -567,6 +567,9 @@ public:
     void clear_RTCMV3();
 #endif // GPS_MOVING_BASELINE
 
+    void setGpsCachedUid(uint8_t* uid);
+    void setGpsCurrentUid(uint8_t* uid);
+
 protected:
 
     // configuration parameters
@@ -591,6 +594,11 @@ protected:
     AP_Float _blend_tc;
     AP_Int16 _driver_options;
     AP_Int8 _primary;
+    AP_Int8 _cache_uid;
+    AP_Int32 _cached_uid_1;
+    AP_Int32 _cached_uid_2;
+    AP_Int32 _cached_uid_3;
+    AP_Int32 _cached_uid_4;
 #if HAL_ENABLE_LIBUAVCAN_DRIVERS
     AP_Int32 _node_id[GPS_MAX_RECEIVERS];
     AP_Int32 _override_node_id[GPS_MAX_RECEIVERS];
@@ -654,6 +662,9 @@ private:
 
     // which ports are locked
     uint8_t locked_ports;
+
+    // cached and current gps node ids
+    int32_t gps_uid_current[4] = {0, 0, 0, 0};
 
     // state of auto-detection process, per instance
     struct detect_state {

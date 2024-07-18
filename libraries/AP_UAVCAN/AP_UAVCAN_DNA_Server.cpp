@@ -29,6 +29,7 @@
 #include <AP_Logger/AP_Logger.h>
 #include "AP_UAVCAN_Clock.h"
 #include <AP_BoardConfig/AP_BoardConfig.h>
+
 extern const AP_HAL::HAL& hal;
 
 #define NODEDATA_MAGIC 0xAC01
@@ -547,6 +548,13 @@ void AP_UAVCAN_DNA_Server::handleNodeInfo(uint8_t node_id, uint8_t unique_id[], 
                            minor,
                            vcs_commit);
     }
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unique ID: ");
+    for (int i = 0; i < 16; i++)
+    {
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "%d", static_cast<int>(unique_id[i]));
+    }
+    AP::gps().setGpsCachedUid(unique_id);
+    AP::gps().setGpsCurrentUid(unique_id);
 
     if (isNodeIDOccupied(node_id)) {
         //if node_id already registered, just verify if Unique ID matches as well
