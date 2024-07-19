@@ -725,13 +725,13 @@ AP_GPS_Backend *AP_GPS::_detect_instance(uint8_t instance)
     // Suind: if uids dont match return nullptr
     if (gps_uid_current[0] == 0 && gps_uid_current[1] == 0 && gps_uid_current[2] == 0 && gps_uid_current[3] == 0)
     {
-        GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "GPS cache not set");
+        // GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "GPS cache not set");
         return nullptr;
     }
     if (_cache_uid.get() == 0)
     {
-        if (gps_uid_current[0] == _cached_uid_1.get() && gps_uid_current[1] == _cached_uid_2.get() 
-            && gps_uid_current[2] == _cached_uid_3.get() && gps_uid_current[3] == _cached_uid_4.get())
+        if (gps_uid_current[0] != _cached_uid_1.get() && gps_uid_current[1] != _cached_uid_2.get() 
+            && gps_uid_current[2] != _cached_uid_3.get() && gps_uid_current[3] != _cached_uid_4.get())
         {
             GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "GPS tampered");
             return nullptr;
@@ -2318,6 +2318,11 @@ void AP_GPS::setGpsCachedUid(uint8_t *uid)
 void AP_GPS::setGpsCurrentUid(uint8_t *uid)
 {
     memcpy(gps_uid_current, uid, 16);
+}
+
+int8_t AP_GPS::getGpsCacheUidParam()
+{
+    return _cache_uid.get();
 }
 
 namespace AP {

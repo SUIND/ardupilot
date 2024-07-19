@@ -569,6 +569,7 @@ public:
 
     void setGpsCachedUid(uint8_t* uid);
     void setGpsCurrentUid(uint8_t* uid);
+    int8_t getGpsCacheUidParam();
 
 protected:
 

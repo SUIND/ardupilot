@@ -553,7 +553,10 @@ void AP_UAVCAN_DNA_Server::handleNodeInfo(uint8_t node_id, uint8_t unique_id[], 
     {
       GCS_SEND_TEXT(MAV_SEVERITY_INFO, "%d", static_cast<int>(unique_id[i]));
     }
-    AP::gps().setGpsCachedUid(unique_id);
+    if (AP::gps().getGpsCacheUidParam() == 1)
+    {
+      AP::gps().setGpsCachedUid(unique_id);
+    }
     AP::gps().setGpsCurrentUid(unique_id);
 
     if (isNodeIDOccupied(node_id)) {
