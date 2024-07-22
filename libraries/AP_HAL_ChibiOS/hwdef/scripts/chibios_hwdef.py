@@ -935,7 +935,7 @@ def write_mcu_config(f):
     env_vars['BOARD_FLASH_SIZE'] = flash_size
 
     flash_reserve_start = get_config(
-        'FLASH_RESERVE_START_KB', default=16, type=int)
+        'FLASH_RESERVE_START_KB', default=32, type=int)
     f.write('\n// location of loaded firmware\n')
     f.write('#define FLASH_LOAD_ADDRESS 0x%08x\n' % (0x08000000 + flash_reserve_start*1024))
     # can be no persistent parameters if no space allocated for them
@@ -1171,7 +1171,7 @@ def write_ldscript(fname):
 
     # space to reserve for bootloader and storage at start of flash
     flash_reserve_start = get_config(
-        'FLASH_RESERVE_START_KB', default=16, type=int)
+        'FLASH_RESERVE_START_KB', default=32, type=int)
 
     storage_flash_page = get_storage_flash_page()
     if storage_flash_page is not None:
