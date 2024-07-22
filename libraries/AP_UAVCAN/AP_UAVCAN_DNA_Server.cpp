@@ -548,13 +548,14 @@ void AP_UAVCAN_DNA_Server::handleNodeInfo(uint8_t node_id, uint8_t unique_id[], 
                            minor,
                            vcs_commit);
     }
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unique ID: ");
-    for (int i = 0; i < 16; i++)
-    {
-      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "%d", static_cast<int>(unique_id[i]));
-    }
+    // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unique ID: ");
+    // for (int i = 0; i < 16; i++)
+    // {
+    //   GCS_SEND_TEXT(MAV_SEVERITY_INFO, "%d", static_cast<int>(unique_id[i]));
+    // }
     if (AP::gps().getGpsCacheUidParam() == 1)
     {
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Setting cached uid"); 
       AP::gps().setGpsCachedUid(unique_id);
     }
     AP::gps().setGpsCurrentUid(unique_id);

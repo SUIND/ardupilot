@@ -2306,13 +2306,13 @@ void AP_GPS::setGpsCachedUid(uint8_t *uid)
 {
     uint32_t tmp;
     memcpy(&tmp, uid, 4);
-    _cached_uid_1.set(tmp);
+    _cached_uid_1.set_and_save_ifchanged(tmp);
     memcpy(&tmp, uid+4, 4);
-    _cached_uid_2.set(tmp);
+    _cached_uid_2.set_and_save_ifchanged(tmp);
     memcpy(&tmp, uid+8, 4);
-    _cached_uid_3.set(tmp);
+    _cached_uid_3.set_and_save_ifchanged(tmp);
     memcpy(&tmp, uid+12, 4);
-    _cached_uid_4.set(tmp);
+    _cached_uid_4.set_and_save_ifchanged(tmp);
 }
 
 void AP_GPS::setGpsCurrentUid(uint8_t *uid)
