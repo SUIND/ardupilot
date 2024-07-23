@@ -557,6 +557,7 @@ void AP_UAVCAN_DNA_Server::handleNodeInfo(uint8_t node_id, uint8_t unique_id[], 
     {
       GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Setting cached uid"); 
       AP::gps().setGpsCachedUid(unique_id);
+      AP::gps().setGpsCacheUidParam(0);
     }
     AP::gps().setGpsCurrentUid(unique_id);
 

@@ -730,10 +730,10 @@ AP_GPS_Backend *AP_GPS::_detect_instance(uint8_t instance)
     }
     if (_cache_uid.get() == 0)
     {
-        if (gps_uid_current[0] != _cached_uid_1.get() && gps_uid_current[1] != _cached_uid_2.get() 
-            && gps_uid_current[2] != _cached_uid_3.get() && gps_uid_current[3] != _cached_uid_4.get())
+        if (gps_uid_current[0] != _cached_uid_1.get() || gps_uid_current[1] != _cached_uid_2.get() 
+            || gps_uid_current[2] != _cached_uid_3.get() || gps_uid_current[3] != _cached_uid_4.get())
         {
-            GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "GPS tampered");
+            // GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "GPS tampered");
             return nullptr;
         }
     }
@@ -2323,6 +2323,11 @@ void AP_GPS::setGpsCurrentUid(uint8_t *uid)
 int8_t AP_GPS::getGpsCacheUidParam()
 {
     return _cache_uid.get();
+}
+
+void AP_GPS::setGpsCacheUidParam(int8_t param)
+{
+    _cache_uid.set_and_save_ifchanged(param);
 }
 
 namespace AP {
