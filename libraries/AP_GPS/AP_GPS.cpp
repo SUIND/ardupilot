@@ -408,7 +408,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Values:
     // @Range:
     // @User: Advanced
-    AP_GROUPINFO("_CACHED_UID_1", 33, AP_GPS, _cached_uid_1, 0),
+    AP_GROUPINFO_FLAGS("_CACHED_UID_1", 33, AP_GPS, _cached_uid_1, 0, AP_PARAM_FLAG_HIDDEN),
 
     // @Param: _CACHED_UID_2
     // @DisplayName: Cached UID Second Part
@@ -417,7 +417,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Values:
     // @Range:
     // @User: Advanced
-    AP_GROUPINFO("_CACHED_UID_2", 34, AP_GPS, _cached_uid_2, 0),
+    AP_GROUPINFO_FLAGS("_CACHED_UID_2", 34, AP_GPS, _cached_uid_2, 0, AP_PARAM_FLAG_HIDDEN),
 
     // @Param: _CACHED_UID_3
     // @DisplayName: Cached UID Third Part
@@ -426,7 +426,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Values:
     // @Range:
     // @User: Advanced
-    AP_GROUPINFO("_CACHED_UID_3", 35, AP_GPS, _cached_uid_3, 0),
+    AP_GROUPINFO_FLAGS("_CACHED_UID_3", 35, AP_GPS, _cached_uid_3, 0, AP_PARAM_FLAG_HIDDEN),
 
     // @Param: _CACHED_UID_4
     // @DisplayName: Cached UID Fourth Part
@@ -435,7 +435,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Values:
     // @Range:
     // @User: Advanced
-    AP_GROUPINFO("_CACHED_UID_4", 36, AP_GPS, _cached_uid_4, 0),
+    AP_GROUPINFO_FLAGS("_CACHED_UID_4", 36, AP_GPS, _cached_uid_4, 0, AP_PARAM_FLAG_HIDDEN),
 
     AP_GROUPEND
 };

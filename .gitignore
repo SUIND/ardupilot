@@ -154,3 +154,4 @@ modules/esp_idf
 *.creator
 *.user
 *.out
+.vscode/
