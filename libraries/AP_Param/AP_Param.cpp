@@ -1540,6 +1540,8 @@ bool AP_Param::load_all()
         info = find_by_header(phdr, &ptr);
         if (info != nullptr) {
             _storage.read_block(ptr, ofs+sizeof(phdr), type_size((enum ap_var_type)phdr.type));
+
+            hal.console->printf("Loaded parameter: %s\n",info->name);
         }
 
         ofs += type_size((enum ap_var_type)phdr.type) + sizeof(phdr);

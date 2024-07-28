@@ -56,6 +56,7 @@
 #include <AP_AIS/AP_AIS.h>
 #include <AC_Fence/AC_Fence.h>
 #include <AP_CheckFirmware/AP_CheckFirmware.h>
+#include <AP_Math/tinycrypt_sha256.h>
 
 class AP_Vehicle : public AP_HAL::HAL::Callbacks {
 
@@ -100,6 +101,9 @@ public:
     // happen for many reasons - bad mavlink packet and bad mode
     // parameters for example.
     void notify_no_such_mode(uint8_t mode_number);
+
+    // bool indicating whether parameter checksum is valid
+    bool param_checksum_valid = false;
 
     /*
       common parameters for fixed wing aircraft
@@ -445,6 +449,9 @@ private:
     // run notch update at either loop rate or 200Hz
     void update_dynamic_notch_at_specified_rate();
 
+    // calculate parameter checksum
+    void validate_parameter_checksum();
+
     // decimation for 1Hz update
     uint8_t one_Hz_counter;
     void one_Hz_update();
@@ -459,6 +466,12 @@ private:
 
 
     uint32_t _last_internal_errors;  // backup of AP_InternalError::internal_errors bitmask
+
+    // stored parameter checksum
+    uint8_t param_hash_stored[TC_SHA256_DIGEST_SIZE] = {0x99, 0x2E, 0x56, 0xC3, 0x89, 0xBC, 0x5F, 0x75, 0x69,
+                                                        0x52, 0x80, 0xE8, 0xD8, 0xB2, 0x26, 0xCE, 0x96, 0x25,
+                                                        0x68, 0x10, 0x3D, 0x1D, 0x6C, 0xBA, 0x8D, 0x16, 0xD1,
+                                                        0x85, 0xEC, 0x9B, 0x34, 0x32};
 
     AP_CustomRotations custom_rotations;
 };

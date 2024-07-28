@@ -189,6 +189,10 @@ void AP_Vehicle::setup()
 
     // init_ardupilot is where the vehicle does most of its initialisation.
     init_ardupilot();
+    /***************************************************************************/
+    validate_parameter_checksum();
+    /*******************************************************************************/
+    
 
 #if AP_AIRSPEED_ENABLED
     airspeed.init();
@@ -580,6 +584,68 @@ void AP_Vehicle::update_dynamic_notch_at_specified_rate()
             }
         }
     }
+}
+
+// currently we calculate parameter checksum for a hardcoded parameter list and set an arming condition
+void AP_Vehicle::validate_parameter_checksum()
+{
+    std::vector<uint8_t> param_buffer;
+
+    // Retrieve parameters
+    enum ap_var_type param_type;
+    uint16_t param_flags;
+    AP_Param *param;
+
+    // List of parameters to include in the checksum
+    const char *param_names[] = {"WPNAV_SPEED", "WPNAV_SPEED_UP", "WPNAV_SPEED_DN", "WPNAV_ACCEL_Z"};
+    const size_t param_count = sizeof(param_names) / sizeof(param_names[0]);
+
+    for (size_t i = 0; i < param_count; ++i)
+    {
+        param = AP_Param::find(param_names[i], &param_type, &param_flags);
+        if (param != nullptr)
+        {
+            float param_value = param->cast_to_float(param_type);
+
+            uint8_t* param_value_ptr = reinterpret_cast<uint8_t*>(&param_value);
+            param_buffer.insert(param_buffer.end(), param_value_ptr, param_value_ptr + sizeof(param_value));
+
+            // Print the parameter name and value
+            // hal.console->printf("Parameter %s: %f\n", param_names[i], param_value);
+        }
+        else
+        {
+            // hal.console->printf("Parameter %s not found\n", param_names[i]);
+        }
+    }
+
+    uint8_t hash[TC_SHA256_DIGEST_SIZE];
+
+    struct tc_sha256_state_struct s;
+    tc_sha256_init(&s);
+    tc_sha256_update(&s, param_buffer.data(), param_buffer.size());
+    tc_sha256_final(hash, &s);
+
+    // Compare the calculated hash with the stored hash
+    if (memcmp(hash, param_hash_stored, TC_SHA256_DIGEST_SIZE) == 0) {
+        param_checksum_valid = true;
+    } else {
+        param_checksum_valid = false;
+    }
+
+    // Print calculated and stored checksums
+    hal.console->printf("Calculated parameter checksum: ");
+    for (size_t i = 0; i < TC_SHA256_DIGEST_SIZE; ++i) {
+        hal.console->printf("%02x", hash[i]);
+    }
+    hal.console->printf("\n");
+    hal.console->printf("Stored parameter checksum: ");
+    for (size_t i = 0; i < TC_SHA256_DIGEST_SIZE; ++i) {
+        hal.console->printf("%02x", param_hash_stored[i]);
+    }
+    hal.console->printf("\n");
+
+    hal.console->printf("Parameter checksum match: %s\n", param_checksum_valid ? "true" : "false");
 }
 
 void AP_Vehicle::notify_no_such_mode(uint8_t mode_number)
